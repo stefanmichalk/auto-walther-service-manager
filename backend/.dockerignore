@@ -1,0 +1,14 @@
+node_modules
+npm-debug.log
+.git
+.gitignore
+README.md
+.env
+
+# Uploads und DB NIE ins Image!
+uploads/*
+!uploads/.gitkeep
+db/*.db
+db/*.sqlite
+*.db
+*.sqlite

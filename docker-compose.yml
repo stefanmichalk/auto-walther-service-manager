@@ -1,0 +1,27 @@
+version: '3.8'
+
+services:
+  backend:
+    build: ./backend
+    container_name: inspector-backend
+    ports:
+      - "3222:3222"
+    volumes:
+      - backend-uploads:/app/uploads
+      - backend-db:/app/db
+    environment:
+      - NODE_ENV=production
+    restart: unless-stopped
+
+  frontend:
+    build: ./frontend
+    container_name: inspector-frontend
+    ports:
+      - "80:80"
+    depends_on:
+      - backend
+    restart: unless-stopped
+
+volumes:
+  backend-uploads:
+  backend-db:
