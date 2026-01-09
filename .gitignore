@@ -15,3 +15,9 @@ backend/db/*.db
 backend/db/*.sqlite
 *.db
 *.sqlite
+
+# Sensible Daten - NIE committen!
+pdfs/*.pdf
+pdfs/*.xlsx
+pdfs/*.xls
+extracted/
