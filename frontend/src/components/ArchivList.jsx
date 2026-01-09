@@ -6,12 +6,13 @@ import {
   ClockIcon
 } from '@heroicons/react/24/outline'
 
-export function ArchivList({ currentUser }) {
+export function ArchivList({ currentUser, token }) {
   const [archivData, setArchivData] = useState({ ausgetragen: [], wiedervorlage: [] })
   const [activeSection, setActiveSection] = useState('ausgetragen')
 
   useEffect(() => {
-    fetch('/api/db/fahrzeug-status')
+    if (!token) return
+    fetch('/api/db/fahrzeug-status', { headers: { 'Authorization': `Bearer ${token}` } })
       .then(res => res.json())
       .then(statusList => {
         const ausgetragen = statusList.filter(s => s.ausgetragen)

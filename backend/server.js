@@ -11,6 +11,8 @@ import { parseXlsx } from './parsers/xlsxParser.js';
 import XLSX from 'xlsx';
 import { detectFileType } from './parsers/autoDetect.js';
 import dbRoutes from './routes/dbRoutes.js';
+import authRoutes from './routes/authRoutes.js';
+import { authMiddleware } from './middleware/auth.js';
 import { importParsedData } from './db/database.js';
 
 const __filename = fileURLToPath(import.meta.url);
@@ -640,8 +642,11 @@ app.post('/api/load-existing', async (req, res) => {
   }
 });
 
-// DB Routes einbinden
-app.use('/api/db', dbRoutes);
+// Auth Routes (öffentlich)
+app.use('/api/auth', authRoutes);
+
+// DB Routes einbinden (geschützt)
+app.use('/api/db', authMiddleware, dbRoutes);
 
 // Daten in DB importieren
 app.post('/api/db/import-current', (req, res) => {

@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react'
-import { ArrowPathIcon, TrashIcon, UserCircleIcon } from '@heroicons/react/24/outline'
+import { ArrowPathIcon, TrashIcon, ArrowRightOnRectangleIcon } from '@heroicons/react/24/outline'
 import { DropZone } from './components/DropZone'
 import { Stats } from './components/Stats'
 import { Tabs } from './components/Tabs'
@@ -8,6 +8,7 @@ import { MergedView } from './components/MergedView'
 import { DataTable, HU_COLUMNS, INSP_COLUMNS, SERVICE_COLUMNS } from './components/DataTable'
 import { FaelligkeitenList } from './components/FaelligkeitenList'
 import { ArchivList } from './components/ArchivList'
+import { Login } from './components/Login'
 
 const API_URL = '/api'
 
@@ -17,24 +18,86 @@ function App() {
   const [faelligkeiten, setFaelligkeiten] = useState([])
   const [activeTab, setActiveTab] = useState('faelligkeiten')
   const [loading, setLoading] = useState(false)
-  const [currentUser, setCurrentUser] = useState(() => localStorage.getItem('currentUser') || '')
-  const [showUserMenu, setShowUserMenu] = useState(false)
-
-  const users = ['Stefan', 'Admin', 'Service']
   
-  const handleUserChange = (user) => {
-    setCurrentUser(user)
-    localStorage.setItem('currentUser', user)
-    setShowUserMenu(false)
+  // Auth State
+  const [token, setToken] = useState(() => localStorage.getItem('token'))
+  const [user, setUser] = useState(() => {
+    const saved = localStorage.getItem('user')
+    return saved ? JSON.parse(saved) : null
+  })
+  const [setupRequired, setSetupRequired] = useState(false)
+  const [authChecking, setAuthChecking] = useState(true)
+
+  // Auth check beim Start
+  useEffect(() => {
+    checkAuth()
+  }, [])
+
+  const checkAuth = async () => {
+    // Prüfen ob Setup nötig
+    try {
+      const setupRes = await fetch('/api/auth/setup-required')
+      const setupData = await setupRes.json()
+      setSetupRequired(setupData.setupRequired)
+      
+      if (setupData.setupRequired) {
+        setAuthChecking(false)
+        return
+      }
+    } catch (err) {
+      console.error('Setup check failed:', err)
+    }
+
+    // Token verifizieren falls vorhanden
+    if (token) {
+      try {
+        const res = await fetch('/api/auth/verify', {
+          headers: { 'Authorization': `Bearer ${token}` }
+        })
+        if (!res.ok) {
+          handleLogout()
+        }
+      } catch (err) {
+        handleLogout()
+      }
+    }
+    setAuthChecking(false)
+  }
+
+  const handleLogin = (newToken, newUser) => {
+    setToken(newToken)
+    setUser(newUser)
+    localStorage.setItem('token', newToken)
+    localStorage.setItem('user', JSON.stringify(newUser))
+    setSetupRequired(false)
+  }
+
+  const handleLogout = () => {
+    setToken(null)
+    setUser(null)
+    localStorage.removeItem('token')
+    localStorage.removeItem('user')
+  }
+
+  // Auth Header für API Calls
+  const authHeaders = {
+    'Authorization': `Bearer ${token}`,
+    'Content-Type': 'application/json'
   }
 
   const fetchData = async () => {
+    if (!token) return
     try {
+      const headers = { 'Authorization': `Bearer ${token}` }
       const [dataRes, termineRes, faelligkeitenRes] = await Promise.all([
-        fetch(`${API_URL}/data`),
-        fetch(`${API_URL}/termine`),
-        fetch(`${API_URL}/db/faelligkeiten`)  // Aus DB laden für Multi-User
+        fetch(`${API_URL}/data`, { headers }),
+        fetch(`${API_URL}/termine`, { headers }),
+        fetch(`${API_URL}/db/faelligkeiten`, { headers })
       ])
+      if (faelligkeitenRes.status === 401) {
+        handleLogout()
+        return
+      }
       const dataJson = await dataRes.json()
       const termineJson = await termineRes.json()
       const faelligkeitenJson = await faelligkeitenRes.json()
@@ -49,7 +112,6 @@ function App() {
   const loadExisting = async () => {
     setLoading(true)
     try {
-      // Nur DB-Daten neu laden (keine PDFs parsen)
       await fetchData()
     } catch (err) {
       console.error('Load error:', err)
@@ -65,6 +127,7 @@ function App() {
     try {
       const res = await fetch(`${API_URL}/upload`, {
         method: 'POST',
+        headers: { 'Authorization': `Bearer ${token}` },
         body: formData
       })
       const json = await res.json()
@@ -82,8 +145,9 @@ function App() {
 
   const handleReset = async () => {
     if (!confirm('Wirklich alle Daten löschen? (Speicher + Datenbank)')) return
-    await fetch(`${API_URL}/reset`, { method: 'POST' })
-    await fetch(`${API_URL}/db/reset`, { method: 'POST' })
+    const headers = { 'Authorization': `Bearer ${token}` }
+    await fetch(`${API_URL}/reset`, { method: 'POST', headers })
+    await fetch(`${API_URL}/db/reset`, { method: 'POST', headers })
     setData({ hu: [], inspektion: [], service: [], merged: {} })
     setTermine([])
     setFaelligkeiten([])
@@ -91,14 +155,19 @@ function App() {
   }
 
   useEffect(() => {
-    fetchData()
-  }, [])
+    if (token && !authChecking) {
+      fetchData()
+    }
+  }, [token, authChecking])
 
   const mergedArray = Object.values(data.merged)
   const [archivCount, setArchivCount] = useState(0)
 
   useEffect(() => {
-    fetch('/api/db/fahrzeug-status')
+    if (!token) return
+    fetch('/api/db/fahrzeug-status', {
+      headers: { 'Authorization': `Bearer ${token}` }
+    })
       .then(res => res.json())
       .then(statusList => {
         const ausgetragen = statusList.filter(s => s.ausgetragen).length
@@ -106,7 +175,7 @@ function App() {
         setArchivCount(ausgetragen + wiedervorlage)
       })
       .catch(() => {})
-  }, [faelligkeiten])
+  }, [faelligkeiten, token])
 
   const counts = {
     hu: data.hu.length,
@@ -116,38 +185,36 @@ function App() {
     archiv: archivCount
   }
 
+  // Loading state
+  if (authChecking) {
+    return (
+      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
+        <div className="text-gray-500">Laden...</div>
+      </div>
+    )
+  }
+
+  // Login erforderlich
+  if (!token || setupRequired) {
+    return <Login onLogin={handleLogin} setupRequired={setupRequired} />
+  }
+
   return (
     <div className="min-h-screen bg-white">
       {/* Clean Header */}
       <header className="sticky top-0 z-50 bg-white border-b border-gray-100">
         <div className="max-w-7xl mx-auto px-6 h-14 flex items-center justify-between">
           <h1 className="text-lg font-semibold text-gray-900 tracking-tight">
-            Fahrzeug Inspector
+            Auto Walther - ServiceManager
           </h1>
           <div className="flex items-center gap-3">
-            {/* User Selector */}
-            <div className="relative">
-              <button
-                onClick={() => setShowUserMenu(!showUserMenu)}
-                className="flex items-center gap-2 px-3 py-1.5 text-sm text-gray-600 hover:bg-gray-100 rounded-md transition-colors"
-              >
-                <UserCircleIcon className="w-5 h-5" />
-                <span>{currentUser || 'Benutzer wählen'}</span>
-              </button>
-              {showUserMenu && (
-                <div className="absolute right-0 top-10 bg-white border border-gray-200 rounded-lg shadow-lg z-50 py-1 min-w-[140px]">
-                  {users.map(user => (
-                    <button
-                      key={user}
-                      onClick={() => handleUserChange(user)}
-                      className={`w-full px-3 py-2 text-left text-sm hover:bg-gray-50 ${currentUser === user ? 'bg-gray-100 font-medium' : ''}`}
-                    >
-                      {user}
-                    </button>
-                  ))}
-                </div>
+            {/* Eingeloggter User */}
+            <span className="text-sm text-gray-600">
+              {user?.name || user?.username}
+              {user?.role === 'admin' && (
+                <span className="ml-1 text-xs bg-gray-100 px-1.5 py-0.5 rounded">Admin</span>
               )}
-            </div>
+            </span>
             <button
               onClick={loadExisting}
               disabled={loading}
@@ -161,6 +228,13 @@ function App() {
               className="inline-flex items-center gap-2 px-3 py-1.5 text-sm font-medium text-gray-500 hover:text-gray-700 hover:bg-gray-100 rounded-md transition-colors"
             >
               <TrashIcon className="w-4 h-4" />
+            </button>
+            <button
+              onClick={handleLogout}
+              className="inline-flex items-center gap-2 px-3 py-1.5 text-sm font-medium text-gray-500 hover:text-gray-700 hover:bg-gray-100 rounded-md transition-colors"
+              title="Abmelden"
+            >
+              <ArrowRightOnRectangleIcon className="w-4 h-4" />
             </button>
           </div>
         </div>
@@ -178,8 +252,8 @@ function App() {
           <Tabs activeTab={activeTab} setActiveTab={setActiveTab} counts={counts} />
 
           <div className="p-6">
-            {activeTab === 'faelligkeiten' && <FaelligkeitenList data={faelligkeiten} onRefresh={fetchData} currentUser={currentUser} />}
-            {activeTab === 'archiv' && <ArchivList currentUser={currentUser} />}
+            {activeTab === 'faelligkeiten' && <FaelligkeitenList data={faelligkeiten} onRefresh={fetchData} currentUser={user?.name || user?.username} token={token} />}
+            {activeTab === 'archiv' && <ArchivList currentUser={user?.name || user?.username} token={token} />}
             {activeTab === 'termine' && <TermineList termine={termine} />}
             {activeTab === 'merged' && <MergedView data={mergedArray} />}
             {activeTab === 'hu' && (

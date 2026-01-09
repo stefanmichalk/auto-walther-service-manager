@@ -20,7 +20,8 @@ import { CheckCircleIcon as CheckCircleSolid } from '@heroicons/react/24/solid'
 import { TerminForm } from './TerminForm'
 import { ImportMergeDialog } from './ImportMergeDialog'
 
-export function FaelligkeitenList({ data, onRefresh, currentUser }) {
+export function FaelligkeitenList({ data, onRefresh, currentUser, token }) {
+  const authHeaders = { 'Authorization': `Bearer ${token}`, 'Content-Type': 'application/json' }
   const [showForm, setShowForm] = useState(false)
   const [importing, setImporting] = useState(false)
   const [statusMap, setStatusMap] = useState({})
@@ -38,7 +39,8 @@ export function FaelligkeitenList({ data, onRefresh, currentUser }) {
 
   // Lade gespeicherte Status beim Mount
   useEffect(() => {
-    fetch('/api/db/fahrzeug-status')
+    if (!token) return
+    fetch('/api/db/fahrzeug-status', { headers: { 'Authorization': `Bearer ${token}` } })
       .then(res => res.json())
       .then(statusList => {
         const map = {}
