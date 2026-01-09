@@ -5,6 +5,9 @@ on:
     branches: [main]
   workflow_dispatch:
 
+env:
+  CAPROVER_URL: http://91.99.136.59:3000
+
 jobs:
   deploy-backend:
     runs-on: ubuntu-latest
@@ -16,8 +19,8 @@ jobs:
           cd backend
           tar -cvf /tmp/backend.tar --exclude=node_modules --exclude='*.db' --exclude='*.sqlite' .
           curl -X POST \
-            "${{ secrets.CAPROVER_URL }}/api/v2/user/apps/appData/${{ secrets.BACKEND_APP_NAME }}" \
-            -H "x-captain-auth: ${{ secrets.CAPROVER_TOKEN }}" \
+            "$CAPROVER_URL/api/v2/user/apps/appData/servicemanager-backend?detached=1" \
+            -H "x-captain-app-token: ${{ secrets.BACKEND_TOKEN }}" \
             -F "sourceFile=@/tmp/backend.tar"
 
   deploy-frontend:
@@ -31,6 +34,6 @@ jobs:
           cd frontend
           tar -cvf /tmp/frontend.tar --exclude=node_modules --exclude=dist .
           curl -X POST \
-            "${{ secrets.CAPROVER_URL }}/api/v2/user/apps/appData/${{ secrets.FRONTEND_APP_NAME }}" \
-            -H "x-captain-auth: ${{ secrets.CAPROVER_TOKEN }}" \
+            "$CAPROVER_URL/api/v2/user/apps/appData/servicemanager-frontend?detached=1" \
+            -H "x-captain-app-token: ${{ secrets.FRONTEND_TOKEN }}" \
             -F "sourceFile=@/tmp/frontend.tar"
