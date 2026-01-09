@@ -1,0 +1,36 @@
+name: Deploy to CapRover
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+jobs:
+  deploy-backend:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      
+      - name: Deploy Backend
+        run: |
+          cd backend
+          tar -cvf /tmp/backend.tar --exclude=node_modules --exclude='*.db' --exclude='*.sqlite' .
+          curl -X POST \
+            "${{ secrets.CAPROVER_URL }}/api/v2/user/apps/appData/${{ secrets.BACKEND_APP_NAME }}" \
+            -H "x-captain-auth: ${{ secrets.CAPROVER_TOKEN }}" \
+            -F "sourceFile=@/tmp/backend.tar"
+
+  deploy-frontend:
+    runs-on: ubuntu-latest
+    needs: deploy-backend
+    steps:
+      - uses: actions/checkout@v4
+      
+      - name: Deploy Frontend
+        run: |
+          cd frontend
+          tar -cvf /tmp/frontend.tar --exclude=node_modules --exclude=dist .
+          curl -X POST \
+            "${{ secrets.CAPROVER_URL }}/api/v2/user/apps/appData/${{ secrets.FRONTEND_APP_NAME }}" \
+            -H "x-captain-auth: ${{ secrets.CAPROVER_TOKEN }}" \
+            -F "sourceFile=@/tmp/frontend.tar"
