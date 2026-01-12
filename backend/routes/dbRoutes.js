@@ -455,7 +455,7 @@ router.put('/kapazitaeten/:wochentag', adminOnly, (req, res) => {
     const { max_termine, aktiv } = req.body;
     
     db.prepare(`
-      UPDATE kapazitaeten SET max_termine = ?, aktiv = ?, updated_at = CURRENT_TIMESTAMP
+      UPDATE kapazitaeten SET max_termine = ?, aktiv = ?
       WHERE wochentag = ?
     `).run(max_termine, aktiv ? 1 : 0, wochentag);
     
