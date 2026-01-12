@@ -1,6 +1,7 @@
 import Database from 'better-sqlite3';
 import path from 'path';
 import { fileURLToPath } from 'url';
+import crypto from 'crypto';
 import { formatKennzeichen } from '../utils/kennzeichenFormatter.js';
 
 const __filename = fileURLToPath(import.meta.url);
@@ -213,12 +214,16 @@ const migrations = {
     console.log('Migration 3: Invite Tokens Tabelle erstellt');
   },
 
-  // Migration 4: Handy-Spalte zur kunden-Tabelle hinzufügen
+  // Migration 4: Handy-Spalte zur kunden-Tabelle hinzufügen (wenn nicht existiert)
   4: () => {
-    db.exec(`
-      ALTER TABLE kunden ADD COLUMN handy TEXT;
-    `);
-    console.log('Migration 4: Handy-Spalte zu kunden hinzugefügt');
+    const columns = db.prepare("PRAGMA table_info(kunden)").all();
+    const hasHandy = columns.some(c => c.name === 'handy');
+    if (!hasHandy) {
+      db.exec(`ALTER TABLE kunden ADD COLUMN handy TEXT;`);
+      console.log('Migration 4: Handy-Spalte zu kunden hinzugefügt');
+    } else {
+      console.log('Migration 4: Handy-Spalte existiert bereits');
+    }
   },
 
   // Migration 5: Kapazitäts-Einstellungen für Auslastungsansicht
