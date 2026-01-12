@@ -36,8 +36,28 @@ export function parseInspektion(lines) {
     
     // Line 3: Telefonnummern
     if (i < lines.length && !MANUFACTURERS.some(m => lines[i].startsWith(m))) {
-      // Könnte mehrere Nummern enthalten
-      record.Telefon = lines[i].trim();
+      // +49 durch 0 ersetzen
+      let allNumbers = lines[i].trim().replace(/\+49/g, '0');
+      
+      // Handynummer finden (015x, 016x, 017x) - auch wenn in der Mitte versteckt!
+      const handyPattern = /(01[567]\d{7,11})/g;
+      const handyMatches = allNumbers.match(handyPattern);
+      
+      if (handyMatches && handyMatches.length > 0) {
+        record.Handy = handyMatches[0];
+        // Handy aus String entfernen um Festnetz zu finden
+        let remaining = allNumbers;
+        handyMatches.forEach(h => { remaining = remaining.replace(h, ' '); });
+        // Festnetz extrahieren (Nummern mit 03, 04, 05, 06, 07, 08, 09 am Anfang)
+        const festnetzMatch = remaining.match(/(0[2-9]\d{6,12})/);
+        if (festnetzMatch) {
+          record.Telefon = festnetzMatch[1];
+        }
+      } else {
+        // Kein Handy gefunden - alles als Telefon
+        const festnetzMatch = allNumbers.match(/(0[2-9]\d{6,12})/);
+        record.Telefon = festnetzMatch ? festnetzMatch[1] : allNumbers.replace(/[^\d]/g, '');
+      }
       i++;
     }
     
@@ -75,36 +95,70 @@ function parseInspAddress(line) {
     result.Ort = plzMatch[4].trim();
     
     // Name und Straße trennen - verbesserte Logik
-    // Suche Hausnummer am Ende (Zahl, optional mit Buchstabe)
     const houseNumMatch = nameStreet.match(/^(.+?)(\d+[a-zA-Z]?)$/);
     if (houseNumMatch) {
       const beforeNum = houseNumMatch[1];
       const houseNum = houseNumMatch[2];
+      let found = false;
       
-      // Finde wo der Straßenname beginnt
-      // Bei Firmen: Nach "e.K.", "GmbH", etc.
-      const firmaMatch = beforeNum.match(/^(.+?(?:e\.K\.|GmbH|AG|KG|OHG|UG|mbH)\s*)(.+)$/i);
-      if (firmaMatch) {
-        result.Name = firmaMatch[1].trim();
-        result.Strasse = firmaMatch[2].trim() + ' ' + houseNum;
-      } else {
-        // Bei Personen: Übergang von Kleinbuchstabe zu Großbuchstabe
+      // 1. Straßenendungen erkennen (Straße, Weg, etc.) und CamelCase davor finden
+      const streetSuffixMatch = beforeNum.trim().match(/(straße|strasse|str\.|weg|platz|allee|ring|gasse|damm|ufer|chaussee|steig|pfad|hof|anger)$/i);
+      if (streetSuffixMatch && !found) {
         let splitIdx = -1;
-        for (let k = beforeNum.length - 1; k > 0; k--) {
-          if (/[a-zäöü]/.test(beforeNum[k]) && /[A-ZÄÖÜ]/.test(beforeNum[k + 1])) {
+        for (let k = beforeNum.length - streetSuffixMatch[0].length - 1; k > 0; k--) {
+          if (/[a-zäöüß]/.test(beforeNum[k]) && /[A-ZÄÖÜ]/.test(beforeNum[k + 1])) {
             splitIdx = k + 1;
             break;
           }
         }
-        
         if (splitIdx > 0) {
           result.Name = beforeNum.substring(0, splitIdx).trim();
           result.Strasse = beforeNum.substring(splitIdx).trim() + ' ' + houseNum;
-        } else {
-          // Fallback: Alles ist Name
-          result.Name = beforeNum.trim();
-          result.Strasse = houseNum;
+          found = true;
         }
+      }
+      
+      // 2. Straßenpräfixe erkennen (Am, An der, Im, etc.) - NUR nach Wortgrenze!
+      if (!found) {
+        // Präfix muss nach CamelCase-Übergang kommen (klein→groß)
+        const streetPrefixMatch = beforeNum.match(/^(.+[a-zäöüß])(Am|An der|An den|Im|In der|In den|Auf der|Auf dem|Zur|Zum|Bei der|Bei den|Unter der|Über der|Hinter der|Vor der)(.*)$/);
+        if (streetPrefixMatch) {
+          result.Name = streetPrefixMatch[1].trim();
+          result.Strasse = (streetPrefixMatch[2] + streetPrefixMatch[3]).trim() + ' ' + houseNum;
+          found = true;
+        }
+      }
+      
+      // 3. Firmenformen erkennen (SE, GmbH, AG, e.K., etc.)
+      if (!found) {
+        const firmaMatch = beforeNum.match(/^(.+?(?:SE|e\.K\.|GmbH|AG|KG|OHG|UG|mbH|Co\.|Ltd\.?|Inc\.?)\s*)([A-ZÄÖÜ].*)$/i);
+        if (firmaMatch) {
+          result.Name = firmaMatch[1].trim();
+          result.Strasse = firmaMatch[2].trim() + ' ' + houseNum;
+          found = true;
+        }
+      }
+      
+      // 4. CamelCase-Übergang (letzter Übergang klein→groß)
+      if (!found) {
+        let splitIdx = -1;
+        for (let k = beforeNum.length - 2; k > 0; k--) {
+          if (/[a-zäöüß]/.test(beforeNum[k]) && /[A-ZÄÖÜ]/.test(beforeNum[k + 1])) {
+            splitIdx = k + 1;
+            break;
+          }
+        }
+        if (splitIdx > 0) {
+          result.Name = beforeNum.substring(0, splitIdx).trim();
+          result.Strasse = beforeNum.substring(splitIdx).trim() + ' ' + houseNum;
+          found = true;
+        }
+      }
+      
+      // 5. Fallback: Alles ist Name
+      if (!found) {
+        result.Name = beforeNum.trim();
+        result.Strasse = houseNum;
       }
     } else {
       result.Name = nameStreet.trim();

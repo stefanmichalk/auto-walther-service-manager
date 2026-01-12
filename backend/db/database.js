@@ -56,6 +56,7 @@ const migrations = {
     plz TEXT,
     ort TEXT,
     telefon TEXT,
+    handy TEXT,
     email TEXT,
     created_at DATETIME DEFAULT CURRENT_TIMESTAMP
   );
@@ -145,10 +146,188 @@ const migrations = {
     `);
   },
 
-  // Migration 2: Beispiel für zukünftige Änderungen
-  // 2: () => {
-  //   db.exec(`ALTER TABLE fahrzeuge ADD COLUMN telefon TEXT`);
-  // },
+  // Migration 2: Schema normalisieren
+  2: () => {
+    // 1. Kunden-Tabelle erweitern und Daten migrieren
+    db.exec(`
+      -- Neue Spalten für fahrzeuge: kunde_id als FK
+      ALTER TABLE fahrzeuge ADD COLUMN kunde_id INTEGER REFERENCES kunden(id);
+      
+      -- fahrzeug_status: fahrzeug_id statt nur vin
+      ALTER TABLE fahrzeug_status ADD COLUMN fahrzeug_id INTEGER REFERENCES fahrzeuge(id);
+    `);
+    
+    // 2. Bestehende Kunden aus fahrzeuge.kunde_name in kunden-Tabelle migrieren
+    const fahrzeugeMitKunden = db.prepare(`
+      SELECT DISTINCT kunde_name FROM fahrzeuge WHERE kunde_name IS NOT NULL AND kunde_name != ''
+    `).all();
+    
+    const insertKunde = db.prepare(`
+      INSERT OR IGNORE INTO kunden (name) VALUES (?)
+    `);
+    
+    for (const f of fahrzeugeMitKunden) {
+      insertKunde.run(f.kunde_name);
+    }
+    
+    // 3. kunde_id in fahrzeuge setzen
+    db.exec(`
+      UPDATE fahrzeuge SET kunde_id = (
+        SELECT id FROM kunden WHERE kunden.name = fahrzeuge.kunde_name
+      ) WHERE kunde_name IS NOT NULL AND kunde_name != '';
+    `);
+    
+    // 4. fahrzeug_id in fahrzeug_status setzen
+    db.exec(`
+      UPDATE fahrzeug_status SET fahrzeug_id = (
+        SELECT id FROM fahrzeuge WHERE fahrzeuge.vin = fahrzeug_status.vin
+      );
+    `);
+    
+    // 5. Neue Indizes
+    db.exec(`
+      CREATE INDEX IF NOT EXISTS idx_fahrzeuge_kunde ON fahrzeuge(kunde_id);
+      CREATE INDEX IF NOT EXISTS idx_fahrzeug_status_fahrzeug ON fahrzeug_status(fahrzeug_id);
+    `);
+    
+    console.log('Migration 2: Schema normalisiert - Kunden verknüpft, fahrzeug_status mit FK');
+  },
+
+  // Migration 3: Invite Tokens für User-Einladungen
+  3: () => {
+    db.exec(`
+      CREATE TABLE IF NOT EXISTS invite_tokens (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        token TEXT UNIQUE NOT NULL,
+        username TEXT NOT NULL,
+        name TEXT,
+        role TEXT DEFAULT 'user',
+        created_by INTEGER REFERENCES users(id),
+        created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+        expires_at DATETIME,
+        used_at DATETIME,
+        used INTEGER DEFAULT 0
+      );
+      CREATE INDEX IF NOT EXISTS idx_invite_token ON invite_tokens(token);
+    `);
+    console.log('Migration 3: Invite Tokens Tabelle erstellt');
+  },
+
+  // Migration 4: Handy-Spalte zur kunden-Tabelle hinzufügen
+  4: () => {
+    db.exec(`
+      ALTER TABLE kunden ADD COLUMN handy TEXT;
+    `);
+    console.log('Migration 4: Handy-Spalte zu kunden hinzugefügt');
+  },
+
+  // Migration 5: Kapazitäts-Einstellungen für Auslastungsansicht
+  5: () => {
+    db.exec(`
+      -- Globale Einstellungen
+      CREATE TABLE IF NOT EXISTS settings (
+        key TEXT PRIMARY KEY,
+        value TEXT,
+        updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
+      );
+      
+      -- Kapazitäten pro Wochentag (0=So, 1=Mo, ..., 6=Sa)
+      CREATE TABLE IF NOT EXISTS kapazitaeten (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        wochentag INTEGER NOT NULL UNIQUE,
+        max_termine INTEGER DEFAULT 0,
+        aktiv INTEGER DEFAULT 1
+      );
+      
+      -- Standard-Kapazitäten einfügen
+      INSERT OR IGNORE INTO kapazitaeten (wochentag, max_termine, aktiv) VALUES
+        (0, 0, 0),   -- Sonntag: geschlossen
+        (1, 8, 1),   -- Montag
+        (2, 8, 1),   -- Dienstag
+        (3, 8, 1),   -- Mittwoch
+        (4, 8, 1),   -- Donnerstag
+        (5, 8, 1),   -- Freitag
+        (6, 4, 1);   -- Samstag: halber Tag
+      
+      -- Globale Default-Kapazität
+      INSERT OR IGNORE INTO settings (key, value) VALUES ('default_kapazitaet', '8');
+    `);
+    console.log('Migration 5: Kapazitäts-Einstellungen erstellt');
+  },
+
+  // Migration 6: Geplante Termine (1:n Beziehung Fahrzeug → Termine)
+  6: () => {
+    db.exec(`
+      CREATE TABLE IF NOT EXISTS geplante_termine (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        fahrzeug_id INTEGER NOT NULL REFERENCES fahrzeuge(id),
+        typ TEXT NOT NULL,  -- 'hu', 'inspektion', 'service'
+        datum TEXT NOT NULL,  -- YYYY-MM-DD Format
+        notiz TEXT,
+        erstellt_von INTEGER REFERENCES users(id),
+        created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+        updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
+      );
+      
+      CREATE INDEX idx_geplante_termine_fahrzeug ON geplante_termine(fahrzeug_id);
+      CREATE INDEX idx_geplante_termine_datum ON geplante_termine(datum);
+      
+      -- Bestehende service_termin Daten migrieren
+      INSERT INTO geplante_termine (fahrzeug_id, typ, datum, erstellt_von)
+      SELECT fs.fahrzeug_id, 'service', 
+             substr(fs.service_termin, 7, 4) || '-' || substr(fs.service_termin, 4, 2) || '-' || substr(fs.service_termin, 1, 2),
+             fs.bearbeitet_von
+      FROM fahrzeug_status fs
+      WHERE fs.service_termin IS NOT NULL 
+        AND fs.service_termin != '' 
+        AND fs.service_termin LIKE '__.__.____'
+        AND fs.fahrzeug_id IS NOT NULL;
+    `);
+    console.log('Migration 6: Geplante Termine Tabelle erstellt und Daten migriert');
+  },
+
+  // Migration 7: Kapazitäts-Ausnahmen für bestimmte Tage
+  7: () => {
+    db.exec(`
+      CREATE TABLE IF NOT EXISTS kapazitaet_ausnahmen (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        datum TEXT NOT NULL UNIQUE,  -- YYYY-MM-DD
+        max_termine INTEGER NOT NULL,
+        notiz TEXT,
+        erstellt_von INTEGER REFERENCES users(id),
+        created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+      );
+      
+      CREATE INDEX idx_kapazitaet_ausnahmen_datum ON kapazitaet_ausnahmen(datum);
+    `);
+    console.log('Migration 7: Kapazitäts-Ausnahmen Tabelle erstellt');
+  },
+
+  // Migration 8: Buchungs-Tokens für Kunden-Self-Service
+  8: () => {
+    db.exec(`
+      CREATE TABLE IF NOT EXISTS buchungs_tokens (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        token TEXT NOT NULL UNIQUE,
+        fahrzeug_id INTEGER NOT NULL REFERENCES fahrzeuge(id),
+        vin TEXT NOT NULL,
+        kennzeichen TEXT,
+        kunde_name TEXT,
+        typ TEXT DEFAULT 'service',  -- 'hu', 'inspektion', 'service'
+        status TEXT DEFAULT 'offen',  -- 'offen', 'gebucht', 'abgelaufen'
+        gewaehltes_datum TEXT,  -- vom Kunden gewähltes Datum
+        gueltig_bis DATETIME,
+        erstellt_von INTEGER REFERENCES users(id),
+        created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+        gebucht_at DATETIME
+      );
+      
+      CREATE INDEX idx_buchungs_tokens_token ON buchungs_tokens(token);
+      CREATE INDEX idx_buchungs_tokens_fahrzeug ON buchungs_tokens(fahrzeug_id);
+      CREATE INDEX idx_buchungs_tokens_status ON buchungs_tokens(status);
+    `);
+    console.log('Migration 8: Buchungs-Tokens Tabelle erstellt');
+  },
 };
 
 // Migrationen ausführen
@@ -208,16 +387,46 @@ const stmts = {
 
   // Kunden
   insertKunde: db.prepare(`
-    INSERT INTO kunden (kdnr, anrede, name, strasse, plz, ort, telefon)
-    VALUES (@kdnr, @anrede, @name, @strasse, @plz, @ort, @telefon)
+    INSERT INTO kunden (kdnr, anrede, name, strasse, plz, ort, telefon, handy, email)
+    VALUES (@kdnr, @anrede, @name, @strasse, @plz, @ort, @telefon, @handy, @email)
+  `),
+  
+  upsertKunde: db.prepare(`
+    INSERT INTO kunden (name, strasse, plz, ort, telefon, email)
+    VALUES (@name, @strasse, @plz, @ort, @telefon, @email)
+    ON CONFLICT(id) DO UPDATE SET
+      strasse = COALESCE(@strasse, strasse),
+      plz = COALESCE(@plz, plz),
+      ort = COALESCE(@ort, ort),
+      telefon = COALESCE(@telefon, telefon),
+      email = COALESCE(@email, email)
+    RETURNING id
   `),
   
   getKundeByName: db.prepare(`SELECT * FROM kunden WHERE name = ?`),
+  
+  getKundeById: db.prepare(`SELECT * FROM kunden WHERE id = ?`),
+  
+  updateKunde: db.prepare(`
+    UPDATE kunden SET 
+      name = @name, strasse = @strasse, plz = @plz, ort = @ort, 
+      telefon = @telefon, handy = @handy, email = @email
+    WHERE id = @id
+  `),
+  
+  linkFahrzeugKunde: db.prepare(`
+    UPDATE fahrzeuge SET kunde_id = @kunde_id WHERE id = @fahrzeug_id
+  `),
 
   // Termine
   insertTermin: db.prepare(`
     INSERT INTO termine (fahrzeug_id, typ, datum, km_stand, bezeichnung, vermerk, status, quelle)
     VALUES (@fahrzeug_id, @typ, @datum, @km_stand, @bezeichnung, @vermerk, @status, @quelle)
+  `),
+  
+  // Prüfen ob Termin mit gleichem Typ und Datum schon existiert
+  getTerminByTypAndDatum: db.prepare(`
+    SELECT * FROM termine WHERE fahrzeug_id = ? AND typ = ? AND datum = ?
   `),
   
   getTermineByFahrzeug: db.prepare(`
@@ -241,6 +450,11 @@ const stmts = {
   insertServiceFaelligkeit: db.prepare(`
     INSERT INTO service_faelligkeiten (fahrzeug_id, faelligkeitsdatum, bezeichnung, details, status)
     VALUES (@fahrzeug_id, @faelligkeitsdatum, @bezeichnung, @details, @status)
+  `),
+  
+  // Prüfen ob Service-Fälligkeit mit gleichem Datum schon existiert
+  getServiceByDatum: db.prepare(`
+    SELECT * FROM service_faelligkeiten WHERE fahrzeug_id = ? AND faelligkeitsdatum = ?
   `),
   
   getServiceFaelligkeiten: db.prepare(`
@@ -306,12 +520,18 @@ const stmts = {
       f.hersteller,
       f.modell,
       f.kunde_name,
+      k.strasse as kunde_strasse,
+      k.plz as kunde_plz,
+      k.ort as kunde_ort,
+      k.telefon as kunde_telefon,
+      k.email as kunde_email,
       (SELECT faelligkeitsdatum FROM service_faelligkeiten WHERE fahrzeug_id = f.id ORDER BY faelligkeitsdatum ASC LIMIT 1) as service_faellig,
       (SELECT bezeichnung FROM service_faelligkeiten WHERE fahrzeug_id = f.id ORDER BY faelligkeitsdatum ASC LIMIT 1) as service_bezeichnung,
       (SELECT datum FROM termine WHERE fahrzeug_id = f.id AND typ = 'inspektion' ORDER BY datum ASC LIMIT 1) as inspektion_termin,
       (SELECT vermerk FROM termine WHERE fahrzeug_id = f.id AND typ = 'inspektion' ORDER BY datum ASC LIMIT 1) as inspektion_vermerk,
       (SELECT datum FROM termine WHERE fahrzeug_id = f.id AND typ = 'hu' ORDER BY datum ASC LIMIT 1) as hu_termin
     FROM fahrzeuge f
+    LEFT JOIN kunden k ON f.kunde_id = k.id
     ORDER BY f.kennzeichen
   `)
 };
@@ -370,65 +590,125 @@ export function importParsedData(parsedData) {
   const importStats = { fahrzeuge: 0, termine: 0, service: 0 };
   
   const importTransaction = db.transaction(() => {
-    // HU-Daten importieren
+    // Hilfsfunktion: Kunde anlegen/verknüpfen
+    const createOrUpdateKunde = (fahrzeug, record) => {
+      const kundeName = record.Name || record.Besitzer || record.Kunde;
+      if (!fahrzeug || !kundeName) return;
+      
+      let kunde = stmts.getKundeByName.get(kundeName);
+      
+      if (!kunde) {
+        // Neuen Kunden anlegen - Telefon und Handy separat
+        stmts.insertKunde.run({
+          kdnr: record.KdNr || null,
+          anrede: record.Anrede || null,
+          name: kundeName,
+          strasse: record.Strasse || record.Adresse || null,
+          plz: record.PLZ || null,
+          ort: record.Ort || null,
+          telefon: record.Telefon || null,
+          handy: record.Handy || null,
+          email: record.Email || null
+        });
+        kunde = stmts.getKundeByName.get(kundeName);
+      } else {
+        // Bestehenden Kunden aktualisieren (wenn Felder leer)
+        stmts.updateKunde.run({
+          id: kunde.id,
+          name: kundeName,
+          strasse: record.Strasse || record.Adresse || kunde.strasse,
+          plz: record.PLZ || kunde.plz,
+          ort: record.Ort || kunde.ort,
+          telefon: record.Telefon || kunde.telefon,
+          handy: record.Handy || kunde.handy,
+          email: record.Email || kunde.email
+        });
+      }
+      
+      // Fahrzeug mit Kunde verknüpfen
+      if (kunde) {
+        stmts.linkFahrzeugKunde.run({ kunde_id: kunde.id, fahrzeug_id: fahrzeug.id });
+      }
+    };
+
+    // HU-Daten importieren (mit Kundendaten!)
     for (const record of parsedData.hu || []) {
       if (!record.Fahrgestellnr) continue;
       
-      // Fahrzeug anlegen/aktualisieren (Kennzeichen normalisieren)
       const formattedKennzeichen = record.Kennzeichen ? formatKennzeichen(record.Kennzeichen) : null;
+      const kundeName = record.Name || record.Besitzer || record.Kunde || null;
+      
       stmts.insertFahrzeug.run({
         vin: record.Fahrgestellnr,
         kennzeichen: formattedKennzeichen,
         hersteller: record.Hersteller || null,
         modell: record.Modell || null,
         erstzulassung: record.Erstzulassung || null,
-        kunde_name: record.Name || record.Besitzer || record.Kunde || null
+        kunde_name: kundeName
       });
       
       const fahrzeug = stmts.getFahrzeugByVin.get(record.Fahrgestellnr);
+      
+      // WICHTIG: Kunde aus PDF anlegen/verknüpfen!
+      createOrUpdateKunde(fahrzeug, record);
+      
       if (fahrzeug && record.HU_Datum) {
-        stmts.insertTermin.run({
-          fahrzeug_id: fahrzeug.id,
-          typ: 'hu',
-          datum: record.HU_Datum,
-          km_stand: record.KmStand ? parseInt(record.KmStand) : null,
-          bezeichnung: 'Hauptuntersuchung',
-          vermerk: record.AuftragsNr || null,
-          status: 'geplant',
-          quelle: 'pdf_import'
-        });
-        importStats.termine++;
+        // Prüfen ob dieser Termin schon existiert (Historie!)
+        const existingTermin = stmts.getTerminByTypAndDatum.get(fahrzeug.id, 'hu', record.HU_Datum);
+        if (!existingTermin) {
+          stmts.insertTermin.run({
+            fahrzeug_id: fahrzeug.id,
+            typ: 'hu',
+            datum: record.HU_Datum,
+            km_stand: record.KmStand ? parseInt(record.KmStand) : null,
+            bezeichnung: 'Hauptuntersuchung',
+            vermerk: record.AuftragsNr || null,
+            status: 'geplant',
+            quelle: 'pdf_import'
+          });
+          importStats.termine++;
+        }
       }
       importStats.fahrzeuge++;
     }
     
-    // Inspektion-Daten importieren
+    // Inspektion-Daten importieren (mit Kundendaten!)
     for (const record of parsedData.inspektion || []) {
       if (!record.Fahrgestellnr) continue;
       
       const formattedKennzeichen = record.Kennzeichen ? formatKennzeichen(record.Kennzeichen) : null;
+      const kundeName = record.Name || record.Besitzer || record.Kunde || null;
+      
       stmts.insertFahrzeug.run({
         vin: record.Fahrgestellnr,
         kennzeichen: formattedKennzeichen,
         hersteller: record.Hersteller || null,
         modell: null,
         erstzulassung: record.Erstzulassung || null,
-        kunde_name: record.Name || record.Besitzer || record.Kunde || null
+        kunde_name: kundeName
       });
       
       const fahrzeug = stmts.getFahrzeugByVin.get(record.Fahrgestellnr);
+      
+      // WICHTIG: Kunde aus PDF anlegen/verknüpfen!
+      createOrUpdateKunde(fahrzeug, record);
+      
       if (fahrzeug && record.Inspektion) {
-        stmts.insertTermin.run({
-          fahrzeug_id: fahrzeug.id,
-          typ: 'inspektion',
-          datum: record.Inspektion,
-          km_stand: record.KmStand ? parseInt(record.KmStand) : null,
-          bezeichnung: 'Inspektion',
-          vermerk: record.Vermerk || null,
-          status: 'geplant',
-          quelle: 'pdf_import'
-        });
-        importStats.termine++;
+        // Prüfen ob dieser Termin schon existiert (Historie!)
+        const existingTermin = stmts.getTerminByTypAndDatum.get(fahrzeug.id, 'inspektion', record.Inspektion);
+        if (!existingTermin) {
+          stmts.insertTermin.run({
+            fahrzeug_id: fahrzeug.id,
+            typ: 'inspektion',
+            datum: record.Inspektion,
+            km_stand: record.KmStand ? parseInt(record.KmStand) : null,
+            bezeichnung: 'Inspektion',
+            vermerk: record.Vermerk || null,
+            status: 'geplant',
+            quelle: 'pdf_import'
+          });
+          importStats.termine++;
+        }
       }
       importStats.fahrzeuge++;
     }
@@ -437,17 +717,57 @@ export function importParsedData(parsedData) {
     for (const record of parsedData.service || []) {
       if (!record.Fahrgestellnr) continue;
       
+      const kundeName = record.Name || record.Besitzer || record.Kunde || null;
       const formattedKennzeichen = record.Kennzeichen ? formatKennzeichen(record.Kennzeichen) : null;
+      
+      // Fahrzeug anlegen/aktualisieren
       stmts.insertFahrzeug.run({
         vin: record.Fahrgestellnr,
         kennzeichen: formattedKennzeichen,
         hersteller: null,
         modell: null,
         erstzulassung: null,
-        kunde_name: record.Name || record.Besitzer || record.Kunde || null
+        kunde_name: kundeName
       });
       
       const fahrzeug = stmts.getFahrzeugByVin.get(record.Fahrgestellnr);
+      
+      // Kunde anlegen/aktualisieren wenn Name vorhanden
+      if (fahrzeug && kundeName) {
+        let kunde = stmts.getKundeByName.get(kundeName);
+        
+        if (!kunde) {
+          // Neuen Kunden anlegen mit allen Daten aus XLSX
+          stmts.insertKunde.run({
+            kdnr: null,
+            anrede: null,
+            name: kundeName,
+            strasse: record.Adresse || null,
+            plz: record.PLZ || null,
+            ort: record.Ort || null,
+            telefon: record.Telefon || record.Handy || null,
+            email: record.Email || null
+          });
+          kunde = stmts.getKundeByName.get(kundeName);
+        } else {
+          // Bestehenden Kunden mit neuen Daten aktualisieren (wenn leer)
+          stmts.updateKunde.run({
+            id: kunde.id,
+            name: kundeName,
+            strasse: record.Adresse || kunde.strasse,
+            plz: record.PLZ || kunde.plz,
+            ort: record.Ort || kunde.ort,
+            telefon: record.Telefon || record.Handy || kunde.telefon,
+            email: record.Email || kunde.email
+          });
+        }
+        
+        // Fahrzeug mit Kunde verknüpfen
+        if (kunde) {
+          stmts.linkFahrzeugKunde.run({ kunde_id: kunde.id, fahrzeug_id: fahrzeug.id });
+        }
+      }
+      
       if (fahrzeug && record.Faelligkeitsdatum) {
         // Datum formatieren (YYYY/MM/DD -> DD.MM.YYYY)
         let datum = record.Faelligkeitsdatum;
@@ -456,15 +776,20 @@ export function importParsedData(parsedData) {
           datum = `${d}.${m}.${y}`;
         }
         
-        stmts.insertServiceFaelligkeit.run({
-          fahrzeug_id: fahrzeug.id,
-          faelligkeitsdatum: datum,
-          bezeichnung: record.Bezeichnung || null,
-          details: record.Details || null,
-          status: 'offen'
-        });
-        importStats.service++;
+        // Prüfen ob diese Service-Fälligkeit schon existiert (Historie!)
+        const existingService = stmts.getServiceByDatum.get(fahrzeug.id, datum);
+        if (!existingService) {
+          stmts.insertServiceFaelligkeit.run({
+            fahrzeug_id: fahrzeug.id,
+            faelligkeitsdatum: datum,
+            bezeichnung: record.Bezeichnung || null,
+            details: record.Details || null,
+            status: 'offen'
+          });
+          importStats.service++;
+        }
       }
+      importStats.fahrzeuge++;
     }
   });
   
@@ -513,6 +838,70 @@ export function getAuditLogByVin(vin) {
 
 export function getAllAuditLog() {
   return stmts.getAllAuditLog.all();
+}
+
+// Kunden functions
+export function getKundeById(id) {
+  return stmts.getKundeById.get(id);
+}
+
+export function getKundeByName(name) {
+  return stmts.getKundeByName.get(name);
+}
+
+export function updateKunde(data) {
+  return stmts.updateKunde.run(data);
+}
+
+export function getKundeByFahrzeug(fahrzeugId) {
+  const fahrzeug = db.prepare(`SELECT kunde_id FROM fahrzeuge WHERE id = ?`).get(fahrzeugId);
+  if (fahrzeug?.kunde_id) {
+    return stmts.getKundeById.get(fahrzeug.kunde_id);
+  }
+  return null;
+}
+
+export function getKundeByVin(vin) {
+  const fahrzeug = stmts.getFahrzeugByVin.get(vin);
+  if (fahrzeug?.kunde_id) {
+    return stmts.getKundeById.get(fahrzeug.kunde_id);
+  }
+  return null;
+}
+
+// Invite Token functions
+export function createInviteToken(data) {
+  const token = crypto.randomUUID();
+  const expiresAt = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString(); // 7 Tage
+  db.prepare(`
+    INSERT INTO invite_tokens (token, username, name, role, created_by, expires_at)
+    VALUES (?, ?, ?, ?, ?, ?)
+  `).run(token, data.username, data.name, data.role || 'user', data.created_by, expiresAt);
+  return token;
+}
+
+export function getInviteToken(token) {
+  return db.prepare(`SELECT * FROM invite_tokens WHERE token = ? AND used = 0`).get(token);
+}
+
+export function useInviteToken(token) {
+  return db.prepare(`UPDATE invite_tokens SET used = 1, used_at = CURRENT_TIMESTAMP WHERE token = ?`).run(token);
+}
+
+export function getAllInviteTokens() {
+  return db.prepare(`SELECT * FROM invite_tokens ORDER BY created_at DESC`).all();
+}
+
+export function deleteInviteToken(id) {
+  return db.prepare(`DELETE FROM invite_tokens WHERE id = ?`).run(id);
+}
+
+export function updateUserActive(userId, active) {
+  return db.prepare(`UPDATE users SET active = ? WHERE id = ?`).run(active ? 1 : 0, userId);
+}
+
+export function updateUserRole(userId, role) {
+  return db.prepare(`UPDATE users SET role = ? WHERE id = ?`).run(role, userId);
 }
 
 export default db;

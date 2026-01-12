@@ -39,7 +39,38 @@ export function parseHU(lines) {
       const phoneLine = lines[i];
       const phoneMatch = phoneLine.match(/^([\d\s\+\-\/\(\)]+)(.*)$/);
       if (phoneMatch && phoneMatch[1].length > 5) {
-        record.Telefon = phoneMatch[1].trim();
+        // +49 durch 0 ersetzen
+        let allNumbers = phoneMatch[1].trim().replace(/\+49/g, '0');
+        const _phoneHints = [];
+        
+        if (phoneMatch[1].includes('+49')) {
+          _phoneHints.push('+49 → 0 konvertiert');
+        }
+        
+        // Handynummer finden (015x, 016x, 017x) - auch wenn in der Mitte versteckt!
+        const handyPattern = /(01[567]\d{7,11})/g;
+        const handyMatches = allNumbers.match(handyPattern);
+        
+        if (handyMatches && handyMatches.length > 0) {
+          record.Handy = handyMatches[0];
+          _phoneHints.push(`Handy erkannt: ${handyMatches[0]}`);
+          // Handy aus String entfernen um Festnetz zu finden
+          let remaining = allNumbers;
+          handyMatches.forEach(h => { remaining = remaining.replace(h, ' '); });
+          // Festnetz extrahieren
+          const festnetzMatch = remaining.match(/(0[2-9]\d{6,12})/);
+          if (festnetzMatch) {
+            record.Telefon = festnetzMatch[1];
+            _phoneHints.push(`Festnetz erkannt: ${festnetzMatch[1]}`);
+          }
+        } else {
+          const festnetzMatch = allNumbers.match(/(0[2-9]\d{6,12})/);
+          record.Telefon = festnetzMatch ? festnetzMatch[1] : allNumbers.replace(/[^\d]/g, '');
+        }
+        
+        if (_phoneHints.length > 0) {
+          record._parseHints = [...(record._parseHints || []), ..._phoneHints];
+        }
         record.Modell = phoneMatch[2].trim();
       } else {
         record.Modell = phoneLine;
@@ -54,6 +85,8 @@ export function parseHU(lines) {
     }
     
     if (Object.keys(record).length > 1) {
+      // DEBUG: Zeige geparsten Record
+      console.log('HU PARSED:', JSON.stringify(record, null, 2));
       records.push(record);
     }
   }
@@ -62,7 +95,9 @@ export function parseHU(lines) {
 }
 
 function parseHUAddress(line) {
+  console.log('HU ADDRESS INPUT:', line);
   const result = {};
+  const _parseHints = []; // Parsing-Hinweise sammeln
   
   // Anrede am Anfang
   const anredeMatch = line.match(/^(Herr|Frau|Firma)/);
@@ -85,33 +120,81 @@ function parseHUAddress(line) {
     if (houseNumMatch) {
       const beforeNum = houseNumMatch[1];
       const houseNum = houseNumMatch[2];
+      let found = false;
       
-      // Bei Firmen: Nach "e.K.", "GmbH", etc.
-      const firmaMatch = beforeNum.match(/^(.+?(?:e\.K\.|GmbH|AG|KG|OHG|UG|mbH)\s*)(.+)$/i);
-      if (firmaMatch) {
-        result.Name = firmaMatch[1].trim();
-        result.Strasse = firmaMatch[2].trim() + ' ' + houseNum;
-      } else {
-        // Bei Personen: Übergang von Kleinbuchstabe zu Großbuchstabe
+      // 1. Straßenendungen erkennen (Straße, Weg, etc.) und CamelCase davor finden
+      const streetSuffixMatch = beforeNum.trim().match(/(straße|strasse|str\.|weg|platz|allee|ring|gasse|damm|ufer|chaussee|steig|pfad|hof|anger)$/i);
+      if (streetSuffixMatch && !found) {
         let splitIdx = -1;
-        for (let k = beforeNum.length - 1; k > 0; k--) {
-          if (/[a-zäöü]/.test(beforeNum[k]) && /[A-ZÄÖÜ]/.test(beforeNum[k + 1])) {
+        for (let k = beforeNum.length - streetSuffixMatch[0].length - 1; k > 0; k--) {
+          if (/[a-zäöüß]/.test(beforeNum[k]) && /[A-ZÄÖÜ]/.test(beforeNum[k + 1])) {
             splitIdx = k + 1;
             break;
           }
         }
-        
         if (splitIdx > 0) {
           result.Name = beforeNum.substring(0, splitIdx).trim();
           result.Strasse = beforeNum.substring(splitIdx).trim() + ' ' + houseNum;
-        } else {
-          result.Name = beforeNum.trim();
-          result.Strasse = houseNum;
+          _parseHints.push(`Straßenendung "${streetSuffixMatch[1]}" erkannt → Trennung bei CamelCase davor`);
+          found = true;
         }
+      }
+      
+      // 2. Straßenpräfixe erkennen (Am, An der, Im, etc.) - NUR nach Wortgrenze!
+      // z.B. "Stefan MichalkAm Weg" aber NICHT "GuntramAm Weg" (Guntram endet auf "am")
+      if (!found) {
+        // Präfix muss nach CamelCase-Übergang kommen (klein→groß)
+        const streetPrefixMatch = beforeNum.match(/^(.+[a-zäöüß])(Am|An der|An den|Im|In der|In den|Auf der|Auf dem|Zur|Zum|Bei der|Bei den|Unter der|Über der|Hinter der|Vor der)(.*)$/);
+        if (streetPrefixMatch) {
+          result.Name = streetPrefixMatch[1].trim();
+          result.Strasse = (streetPrefixMatch[2] + streetPrefixMatch[3]).trim() + ' ' + houseNum;
+          _parseHints.push(`Straßenpräfix "${streetPrefixMatch[2]}" erkannt → Trennung vor Präfix`);
+          found = true;
+        }
+      }
+      
+      // 3. Firmenformen erkennen (SE, GmbH, AG, e.K., etc.)
+      if (!found) {
+        const firmaMatch = beforeNum.match(/^(.+?(?:SE|e\.K\.|GmbH|AG|KG|OHG|UG|mbH|Co\.|Ltd\.?|Inc\.?)\s*)([A-ZÄÖÜ].*)$/i);
+        if (firmaMatch) {
+          result.Name = firmaMatch[1].trim();
+          result.Strasse = firmaMatch[2].trim() + ' ' + houseNum;
+          const firmaType = firmaMatch[1].match(/(SE|e\.K\.|GmbH|AG|KG|OHG|UG|mbH|Co\.|Ltd\.?|Inc\.?)/i);
+          _parseHints.push(`Firmenform "${firmaType?.[1]}" erkannt → Trennung nach Rechtsform`);
+          found = true;
+        }
+      }
+      
+      // 4. CamelCase-Übergang (letzter Übergang klein→groß)
+      if (!found) {
+        let splitIdx = -1;
+        for (let k = beforeNum.length - 2; k > 0; k--) {
+          if (/[a-zäöüß]/.test(beforeNum[k]) && /[A-ZÄÖÜ]/.test(beforeNum[k + 1])) {
+            splitIdx = k + 1;
+            break;
+          }
+        }
+        if (splitIdx > 0) {
+          result.Name = beforeNum.substring(0, splitIdx).trim();
+          result.Strasse = beforeNum.substring(splitIdx).trim() + ' ' + houseNum;
+          _parseHints.push(`CamelCase-Trennung: "${beforeNum[splitIdx-1]}${beforeNum[splitIdx]}" → Name endet, Straße beginnt`);
+          found = true;
+        }
+      }
+      
+      // 5. Fallback: Alles ist Name
+      if (!found) {
+        result.Name = beforeNum.trim();
+        result.Strasse = houseNum;
+        _parseHints.push(`Keine Trennung möglich → Nur Hausnummer als Straße`);
       }
     } else {
       result.Name = nameStreet.trim();
     }
+  }
+  
+  if (_parseHints.length > 0) {
+    result._parseHints = _parseHints;
   }
   
   return result;

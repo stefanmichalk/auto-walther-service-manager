@@ -1,11 +1,9 @@
-export function Tabs({ activeTab, setActiveTab, counts }) {
+export function Tabs({ activeTab, setActiveTab, counts, isAdmin }) {
   const tabs = [
     { id: 'faelligkeiten', label: 'Fälligkeiten' },
+    { id: 'fahrzeuge', label: 'Fahrzeuge', count: counts.fahrzeuge },
     { id: 'archiv', label: 'Archiv', count: counts.archiv },
-    { id: 'merged', label: 'Fahrzeuge', count: counts.merged },
-    { id: 'hu', label: 'HU', count: counts.hu },
-    { id: 'inspektion', label: 'Inspektion', count: counts.inspektion },
-    { id: 'service', label: 'Service', count: counts.service },
+    ...(isAdmin ? [{ id: 'admin', label: 'Admin' }] : []),
   ]
 
   return (

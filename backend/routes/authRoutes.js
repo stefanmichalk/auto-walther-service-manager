@@ -1,7 +1,7 @@
 import express from 'express';
 import bcrypt from 'bcryptjs';
 import { generateToken, authMiddleware, adminOnly } from '../middleware/auth.js';
-import { getUserByUsername, createUser, getAllUsers, getDb } from '../db/database.js';
+import { getUserByUsername, createUser, getAllUsers, getDb, createInviteToken, getInviteToken, useInviteToken, getAllInviteTokens, deleteInviteToken, updateUserActive, updateUserRole } from '../db/database.js';
 
 const router = express.Router();
 
@@ -132,6 +132,138 @@ router.post('/setup', (req, res) => {
 router.get('/setup-required', (req, res) => {
   const users = getAllUsers();
   res.json({ setupRequired: users.length === 0 });
+});
+
+// ============ INVITE TOKEN ROUTES ============
+
+// Invite Token erstellen (nur Admin)
+router.post('/invite', authMiddleware, adminOnly, (req, res) => {
+  const { username, name, role } = req.body;
+
+  if (!username) {
+    return res.status(400).json({ error: 'Username erforderlich' });
+  }
+
+  const existing = getUserByUsername(username);
+  if (existing) {
+    return res.status(400).json({ error: 'Benutzername existiert bereits' });
+  }
+
+  try {
+    const token = createInviteToken({
+      username,
+      name: name || username,
+      role: role || 'user',
+      created_by: req.user.id
+    });
+    res.json({ success: true, token, inviteUrl: `/invite/${token}` });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// Invite Token validieren (öffentlich)
+router.get('/invite/:token', (req, res) => {
+  const invite = getInviteToken(req.params.token);
+  
+  if (!invite) {
+    return res.status(404).json({ error: 'Einladung nicht gefunden oder bereits verwendet' });
+  }
+
+  if (new Date(invite.expires_at) < new Date()) {
+    return res.status(410).json({ error: 'Einladung abgelaufen' });
+  }
+
+  res.json({
+    valid: true,
+    username: invite.username,
+    name: invite.name,
+    role: invite.role
+  });
+});
+
+// Passwort setzen mit Invite Token (öffentlich)
+router.post('/invite/:token/complete', (req, res) => {
+  const { password } = req.body;
+  const invite = getInviteToken(req.params.token);
+
+  if (!invite) {
+    return res.status(404).json({ error: 'Einladung nicht gefunden oder bereits verwendet' });
+  }
+
+  if (new Date(invite.expires_at) < new Date()) {
+    return res.status(410).json({ error: 'Einladung abgelaufen' });
+  }
+
+  if (!password || password.length < 4) {
+    return res.status(400).json({ error: 'Passwort muss mindestens 4 Zeichen haben' });
+  }
+
+  const password_hash = bcrypt.hashSync(password, 10);
+
+  try {
+    createUser({
+      username: invite.username,
+      password_hash,
+      name: invite.name,
+      role: invite.role
+    });
+    useInviteToken(req.params.token);
+    res.json({ success: true, message: 'Account erstellt. Sie können sich jetzt anmelden.' });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// Alle Invite Tokens abrufen (nur Admin)
+router.get('/invites', authMiddleware, adminOnly, (req, res) => {
+  const invites = getAllInviteTokens();
+  res.json(invites);
+});
+
+// Invite Token löschen (nur Admin)
+router.delete('/invite/:id', authMiddleware, adminOnly, (req, res) => {
+  try {
+    deleteInviteToken(req.params.id);
+    res.json({ success: true });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// ============ USER MANAGEMENT ROUTES ============
+
+// User aktivieren/deaktivieren (nur Admin)
+router.post('/users/:id/activate', authMiddleware, adminOnly, (req, res) => {
+  try {
+    updateUserActive(req.params.id, true);
+    res.json({ success: true });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+router.post('/users/:id/deactivate', authMiddleware, adminOnly, (req, res) => {
+  try {
+    updateUserActive(req.params.id, false);
+    res.json({ success: true });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// User Rolle ändern (nur Admin)
+router.post('/users/:id/role', authMiddleware, adminOnly, (req, res) => {
+  const { role } = req.body;
+  if (!['user', 'admin'].includes(role)) {
+    return res.status(400).json({ error: 'Ungültige Rolle' });
+  }
+  try {
+    updateUserRole(req.params.id, role);
+    res.json({ success: true });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
 });
 
 export default router;

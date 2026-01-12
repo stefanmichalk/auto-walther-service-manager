@@ -12,6 +12,7 @@ import XLSX from 'xlsx';
 import { detectFileType } from './parsers/autoDetect.js';
 import dbRoutes from './routes/dbRoutes.js';
 import authRoutes from './routes/authRoutes.js';
+import buchungRoutes from './routes/buchungRoutes.js';
 import { authMiddleware } from './middleware/auth.js';
 import { importParsedData } from './db/database.js';
 
@@ -644,6 +645,9 @@ app.post('/api/load-existing', async (req, res) => {
 
 // Auth Routes (öffentlich)
 app.use('/api/auth', authRoutes);
+
+// Buchungs-Routes: öffentliche Token-Validierung + Buchung
+app.use('/api/buchung', buchungRoutes);
 
 // DB Routes einbinden (geschützt)
 app.use('/api/db', authMiddleware, dbRoutes);

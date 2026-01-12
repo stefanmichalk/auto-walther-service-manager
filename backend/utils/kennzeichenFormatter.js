@@ -30,57 +30,15 @@ function loadKennzeichenData() {
 loadKennzeichenData();
 
 /**
- * Formatiert ein Kennzeichen ins Format "AA-BB 123" oder "AAA-BB 123"
- * @param {string} raw - Rohes Kennzeichen (z.B. "FGNP199", "FG-NP199", "FG NP 199")
- * @returns {string} - Formatiertes Kennzeichen (z.B. "FG-NP 199")
+ * Bereinigt ein Kennzeichen: nur Großbuchstaben und Zahlen
+ * @param {string} raw - Rohes Kennzeichen (z.B. "FG-NP 199", "FG NP 199")
+ * @returns {string} - Bereinigtes Kennzeichen (z.B. "FGNP199")
  */
 export function formatKennzeichen(raw) {
   if (!raw) return raw;
   
-  // Entferne alle Leerzeichen und Bindestriche
-  let clean = raw.toUpperCase().replace(/[\s\-]/g, '');
-  
-  // Finde das Unterscheidungszeichen (1-3 Buchstaben am Anfang)
-  let prefix = '';
-  let rest = clean;
-  
-  // Versuche 3, dann 2, dann 1 Buchstaben zu matchen
-  for (let len = 3; len >= 1; len--) {
-    const candidate = clean.substring(0, len);
-    if (kennzeichenKuerzel.has(candidate)) {
-      prefix = candidate;
-      rest = clean.substring(len);
-      break;
-    }
-  }
-  
-  // Fallback: Nimm erste 1-3 Großbuchstaben
-  if (!prefix) {
-    const match = clean.match(/^([A-Z]{1,3})/);
-    if (match) {
-      prefix = match[1];
-      rest = clean.substring(prefix.length);
-    }
-  }
-  
-  if (!prefix) return raw;
-  
-  // Rest aufteilen in Buchstaben und Zahlen
-  const restMatch = rest.match(/^([A-Z]{1,2})(\d+[A-Z]?)$/);
-  if (restMatch) {
-    const letters = restMatch[1];
-    const numbers = restMatch[2];
-    return `${prefix}-${letters} ${numbers}`;
-  }
-  
-  // Alternatives Format: Nur Zahlen nach Prefix
-  const numMatch = rest.match(/^(\d+[A-Z]?)$/);
-  if (numMatch) {
-    return `${prefix}-${numMatch[1]}`;
-  }
-  
-  // Wenn nichts passt, original zurückgeben
-  return raw;
+  // Nur Buchstaben und Zahlen, alles Großbuchstaben
+  return raw.toUpperCase().replace(/[^A-Z0-9]/g, '');
 }
 
 /**

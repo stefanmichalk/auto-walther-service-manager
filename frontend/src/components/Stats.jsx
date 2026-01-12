@@ -1,12 +1,30 @@
-export function Stats({ data }) {
-  const mergedCount = Object.keys(data.merged).length
+export function Stats({ faelligkeiten = [], statusMap = {} }) {
+  const offen = faelligkeiten.filter(f => {
+    const status = statusMap[f.vin]
+    return !status?.ausgetragen && !status?.wiedervorlage_datum && f.bearbeitungs_status !== 'angeschrieben' && f.bearbeitungs_status !== 'termin'
+  }).length
+
+  const angeschrieben = faelligkeiten.filter(f => {
+    const status = statusMap[f.vin]
+    return !status?.ausgetragen && f.bearbeitungs_status === 'angeschrieben'
+  }).length
+
+  const termin = faelligkeiten.filter(f => {
+    const status = statusMap[f.vin]
+    return !status?.ausgetragen && f.bearbeitungs_status === 'termin'
+  }).length
+
+  const nachfassen = faelligkeiten.filter(f => {
+    const status = statusMap[f.vin]
+    return !status?.ausgetragen && status?.wiedervorlage_datum
+  }).length
 
   return (
-    <div className="flex items-center gap-6 text-sm">
-      <Stat label="HU" value={data.hu.length} />
-      <Stat label="Inspektion" value={data.inspektion.length} />
-      <Stat label="Service" value={data.service.length} />
-      <Stat label="Fahrzeuge" value={mergedCount} />
+    <div className="flex items-center gap-4 text-sm">
+      <Stat label="Offen" value={offen} />
+      <Stat label="Angeschrieben" value={angeschrieben} />
+      <Stat label="Termin" value={termin} />
+      <Stat label="Nachfassen" value={nachfassen} />
     </div>
   )
 }
