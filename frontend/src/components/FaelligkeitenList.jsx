@@ -38,6 +38,7 @@ export function FaelligkeitenList({ data, onRefresh, currentUser, token }) {
   const [searchTerm, setSearchTerm] = useState('')
   const [filterUrgency, setFilterUrgency] = useState('alle')
   const [filterStatus, setFilterStatus] = useState('alle')
+  const [filterType, setFilterType] = useState('alle')
   const [importPreview, setImportPreview] = useState(null)
   const [parsedData, setParsedData] = useState(null)
   const [buchungsLink, setBuchungsLink] = useState(null)
@@ -337,6 +338,17 @@ export function FaelligkeitenList({ data, onRefresh, currentUser, token }) {
             <option value="angeschrieben">Angeschrieben</option>
             <option value="termin">Mit Termin</option>
           </select>
+          
+          <select
+            value={filterType}
+            onChange={(e) => setFilterType(e.target.value)}
+            className="px-4 py-2 text-sm bg-gray-50 border border-gray-200 focus:border-emerald-500 outline-none rounded-xl"
+          >
+            <option value="alle">Alle Typen</option>
+            <option value="service">Service</option>
+            <option value="hu">HU</option>
+            <option value="hu_service">HU + Service</option>
+          </select>
 
           <div className="flex items-center gap-2 ml-auto">
             <button
@@ -383,6 +395,16 @@ export function FaelligkeitenList({ data, onRefresh, currentUser, token }) {
               if (filterStatus === 'offen' && (status.angeschrieben || status.service_termin)) return false
               if (filterStatus === 'angeschrieben' && !status.angeschrieben) return false
               if (filterStatus === 'termin' && !status.service_termin) return false
+              
+              // Filter: Typ
+              if (filterType !== 'alle') {
+                const hasService = !!f.serviceFaellig || !!f.inspektionTermin
+                const hasHU = !!f.huTermin
+                if (filterType === 'service' && (!hasService || hasHU)) return false
+                if (filterType === 'hu' && (!hasHU || hasService)) return false
+                if (filterType === 'hu_service' && (!hasHU || !hasService)) return false
+              }
+              
               return true
             })
             .sort((a, b) => {
@@ -489,6 +511,15 @@ export function FaelligkeitenList({ data, onRefresh, currentUser, token }) {
                 if (filterStatus === 'offen' && (status.angeschrieben || status.service_termin)) return false
                 if (filterStatus === 'angeschrieben' && !status.angeschrieben) return false
                 if (filterStatus === 'termin' && !status.service_termin) return false
+                
+                // Filter: Typ
+                if (filterType !== 'alle') {
+                  const hasService = !!f.serviceFaellig || !!f.inspektionTermin
+                  const hasHU = !!f.huTermin
+                  if (filterType === 'service' && (!hasService || hasHU)) return false
+                  if (filterType === 'hu' && (!hasHU || hasService)) return false
+                  if (filterType === 'hu_service' && (!hasHU || !hasService)) return false
+                }
                 
                 return true
               })
