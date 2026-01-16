@@ -750,7 +750,8 @@ export function importParsedData(parsedData) {
             strasse: record.Adresse || null,
             plz: record.PLZ || null,
             ort: record.Ort || null,
-            telefon: record.Telefon || record.Handy || null,
+            telefon: record.Telefon || null,
+            handy: record.Handy || null,
             email: record.Email || null
           });
           kunde = stmts.getKundeByName.get(kundeName);
@@ -762,7 +763,8 @@ export function importParsedData(parsedData) {
             strasse: record.Adresse || kunde.strasse,
             plz: record.PLZ || kunde.plz,
             ort: record.Ort || kunde.ort,
-            telefon: record.Telefon || record.Handy || kunde.telefon,
+            telefon: record.Telefon || kunde.telefon,
+            handy: record.Handy || kunde.handy,
             email: record.Email || kunde.email
           });
         }

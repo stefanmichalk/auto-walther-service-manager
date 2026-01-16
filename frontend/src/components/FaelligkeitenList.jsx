@@ -42,6 +42,7 @@ export function FaelligkeitenList({ data, onRefresh, currentUser, token }) {
   const [importPreview, setImportPreview] = useState(null)
   const [parsedData, setParsedData] = useState(null)
   const [buchungsLink, setBuchungsLink] = useState(null)
+  const [editKunde, setEditKunde] = useState({ name: '', telefon: '', email: '', strasse: '', plz: '', ort: '', notizen: '' })
 
   // Lade gespeicherte Status beim Mount
   useEffect(() => {
@@ -110,8 +111,71 @@ export function FaelligkeitenList({ data, onRefresh, currentUser, token }) {
     }
   }
 
+  // Filterfunktion für Export wiederverwenden
+  const getFilteredData = () => {
+    return data.filter(f => {
+      const status = statusMap[f.vin] || {}
+      if (status.ausgetragen || status.wiedervorlage_datum) return false
+      if (searchTerm) {
+        const term = searchTerm.toLowerCase()
+        const matchKennzeichen = f.kennzeichen?.toLowerCase().includes(term)
+        const matchKunde = f.kunde?.toLowerCase().includes(term)
+        const matchVin = f.vin?.toLowerCase().includes(term)
+        if (!matchKennzeichen && !matchKunde && !matchVin) return false
+      }
+      if (filterUrgency !== 'alle' && f.urgency !== filterUrgency) return false
+      if (filterStatus === 'offen' && (status.angeschrieben || status.service_termin)) return false
+      if (filterStatus === 'angeschrieben' && !status.angeschrieben) return false
+      if (filterStatus === 'termin' && !status.service_termin) return false
+      if (filterType !== 'alle') {
+        const hasService = !!f.serviceFaellig || !!f.inspektionTermin
+        const hasHU = !!f.huTermin
+        if (filterType === 'service' && (!hasService || hasHU)) return false
+        if (filterType === 'hu' && (!hasHU || hasService)) return false
+        if (filterType === 'hu_service' && (!hasHU || !hasService)) return false
+      }
+      return true
+    })
+  }
+
   const handleExport = () => {
-    window.open('/api/faelligkeiten/export', '_blank')
+    const filtered = getFilteredData()
+    
+    // CSV Header
+    const headers = ['Kennzeichen', 'VIN', 'Kunde', 'Straße', 'PLZ', 'Ort', 'Telefon', 'E-Mail', 'Service', 'Inspektion', 'HU', 'Nächste Fälligkeit', 'Status']
+    
+    // CSV Rows
+    const rows = filtered.map(f => {
+      const status = statusMap[f.vin] || {}
+      const statusText = status.service_termin ? `Termin: ${status.service_termin}` : status.angeschrieben ? 'Angeschrieben' : 'Offen'
+      return [
+        f.kennzeichen || '',
+        f.vin || '',
+        f.kunde || '',
+        f.kundeStrasse || '',
+        f.kundePlz || '',
+        f.kundeOrt || '',
+        f.kundeTelefon || '',
+        f.kundeEmail || '',
+        f.serviceFaellig || '',
+        f.inspektionTermin || '',
+        f.huTermin || '',
+        f.nextDate || '',
+        statusText
+      ]
+    })
+    
+    // CSV erstellen
+    const csvContent = [headers, ...rows]
+      .map(row => row.map(cell => `"${String(cell).replace(/"/g, '""')}"`).join(';'))
+      .join('\n')
+    
+    // Download
+    const blob = new Blob(['\ufeff' + csvContent], { type: 'text/csv;charset=utf-8;' })
+    const link = document.createElement('a')
+    link.href = URL.createObjectURL(blob)
+    link.download = `faelligkeiten_export_${new Date().toISOString().split('T')[0]}.csv`
+    link.click()
   }
 
   const handleAustragen = async () => {
@@ -210,6 +274,15 @@ export function FaelligkeitenList({ data, onRefresh, currentUser, token }) {
 
   const openInfoModal = async (fahrzeug) => {
     setInfoModal(fahrzeug)
+    setEditKunde({
+      name: fahrzeug.kunde || '',
+      telefon: fahrzeug.kundeTelefon || '',
+      email: fahrzeug.kundeEmail || '',
+      strasse: fahrzeug.kundeStrasse || '',
+      plz: fahrzeug.kundePlz || '',
+      ort: fahrzeug.kundeOrt || '',
+      notizen: ''
+    })
     // Audit-Log laden
     try {
       const res = await fetch(`/api/db/audit-log/${fahrzeug.vin}`, { headers: { 'Authorization': `Bearer ${token}` } })
@@ -233,6 +306,24 @@ export function FaelligkeitenList({ data, onRefresh, currentUser, token }) {
     setInfoModal(null)
     setAuditLog([])
     setTermine([])
+  }
+
+  const handleSaveKunde = async () => {
+    if (!infoModal?.fahrzeug_id) return
+    try {
+      const res = await fetch(`/api/db/fahrzeuge/${infoModal.fahrzeug_id}/kunde`, {
+        method: 'POST',
+        headers: authHeaders,
+        body: JSON.stringify(editKunde)
+      })
+      if (res.ok) {
+        // Daten aktualisieren
+        onRefresh && onRefresh()
+        closeInfoModal()
+      }
+    } catch (err) {
+      console.error('Save kunde error:', err)
+    }
   }
 
   if (data.length === 0) {
@@ -992,7 +1083,8 @@ export function FaelligkeitenList({ data, onRefresh, currentUser, token }) {
                         <label className="block text-sm font-medium text-gray-700 mb-2">Name</label>
                         <input 
                           type="text" 
-                          defaultValue={infoModal.kunde || ''} 
+                          value={editKunde.name}
+                          onChange={(e) => setEditKunde(prev => ({ ...prev, name: e.target.value }))}
                           placeholder="Name eingeben..."
                           className="w-full px-4 py-3 border border-gray-200 rounded-xl text-sm focus:ring-2 focus:ring-emerald-500 focus:border-transparent"
                         />
@@ -1001,7 +1093,8 @@ export function FaelligkeitenList({ data, onRefresh, currentUser, token }) {
                         <label className="block text-sm font-medium text-gray-700 mb-2">Telefon</label>
                         <input 
                           type="tel" 
-                          defaultValue={infoModal.kundeTelefon || ''} 
+                          value={editKunde.telefon}
+                          onChange={(e) => setEditKunde(prev => ({ ...prev, telefon: e.target.value }))}
                           placeholder="Telefon..."
                           className="w-full px-4 py-3 border border-gray-200 rounded-xl text-sm focus:ring-2 focus:ring-emerald-500 focus:border-transparent"
                         />
@@ -1010,7 +1103,8 @@ export function FaelligkeitenList({ data, onRefresh, currentUser, token }) {
                         <label className="block text-sm font-medium text-gray-700 mb-2">Straße</label>
                         <input 
                           type="text" 
-                          defaultValue={infoModal.kundeStrasse || ''} 
+                          value={editKunde.strasse}
+                          onChange={(e) => setEditKunde(prev => ({ ...prev, strasse: e.target.value }))}
                           placeholder="Straße..."
                           className="w-full px-4 py-3 border border-gray-200 rounded-xl text-sm focus:ring-2 focus:ring-emerald-500 focus:border-transparent"
                         />
@@ -1020,13 +1114,15 @@ export function FaelligkeitenList({ data, onRefresh, currentUser, token }) {
                         <div className="flex gap-2">
                           <input 
                             type="text" 
-                            defaultValue={infoModal.kundePlz || ''} 
+                            value={editKunde.plz}
+                            onChange={(e) => setEditKunde(prev => ({ ...prev, plz: e.target.value }))}
                             placeholder="PLZ"
                             className="w-24 px-4 py-3 border border-gray-200 rounded-xl text-sm focus:ring-2 focus:ring-emerald-500 focus:border-transparent"
                           />
                           <input 
                             type="text" 
-                            defaultValue={infoModal.kundeOrt || ''} 
+                            value={editKunde.ort}
+                            onChange={(e) => setEditKunde(prev => ({ ...prev, ort: e.target.value }))}
                             placeholder="Ort"
                             className="flex-1 px-4 py-3 border border-gray-200 rounded-xl text-sm focus:ring-2 focus:ring-emerald-500 focus:border-transparent"
                           />
@@ -1036,7 +1132,8 @@ export function FaelligkeitenList({ data, onRefresh, currentUser, token }) {
                         <label className="block text-sm font-medium text-gray-700 mb-2">E-Mail</label>
                         <input 
                           type="email" 
-                          defaultValue={infoModal.kundeEmail || ''} 
+                          value={editKunde.email}
+                          onChange={(e) => setEditKunde(prev => ({ ...prev, email: e.target.value }))}
                           placeholder="E-Mail..."
                           className="w-full px-4 py-3 border border-gray-200 rounded-xl text-sm focus:ring-2 focus:ring-emerald-500 focus:border-transparent"
                         />
@@ -1047,14 +1144,18 @@ export function FaelligkeitenList({ data, onRefresh, currentUser, token }) {
                       <label className="block text-sm font-medium text-gray-700 mb-2">Notizen</label>
                       <textarea 
                         rows={4}
-                        defaultValue=""
+                        value={editKunde.notizen}
+                        onChange={(e) => setEditKunde(prev => ({ ...prev, notizen: e.target.value }))}
                         placeholder="Notizen zum Kunden..."
                         className="w-full px-4 py-3 border border-gray-200 rounded-xl text-sm focus:ring-2 focus:ring-emerald-500 focus:border-transparent resize-none"
                       />
                     </div>
                     
                     <div className="flex justify-end">
-                      <button className="px-6 py-2.5 bg-emerald-600 text-white text-sm font-medium rounded-xl hover:bg-emerald-700 transition-colors">
+                      <button 
+                        onClick={handleSaveKunde}
+                        className="px-6 py-2.5 bg-emerald-600 text-white text-sm font-medium rounded-xl hover:bg-emerald-700 transition-colors"
+                      >
                         Speichern
                       </button>
                     </div>

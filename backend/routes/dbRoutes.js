@@ -150,6 +150,71 @@ router.get('/fahrzeuge/:id', (req, res) => {
   }
 });
 
+// Kundendaten aktualisieren (per Fahrzeug-ID)
+router.post('/fahrzeuge/:id/kunde', (req, res) => {
+  try {
+    const db = getDb();
+    const { id } = req.params;
+    const { name, telefon, email, strasse, plz, ort, notizen } = req.body;
+    
+    // Fahrzeug holen
+    const fahrzeug = db.prepare('SELECT * FROM fahrzeuge WHERE id = ?').get(id);
+    if (!fahrzeug) {
+      return res.status(404).json({ error: 'Fahrzeug nicht gefunden' });
+    }
+    
+    // Kunde aktualisieren oder erstellen
+    if (fahrzeug.kunde_id) {
+      // Existierenden Kunden aktualisieren
+      db.prepare(`
+        UPDATE kunden SET 
+          name = COALESCE(?, name),
+          telefon = ?,
+          email = ?,
+          strasse = ?,
+          plz = ?,
+          ort = ?
+        WHERE id = ?
+      `).run(name, telefon, email, strasse, plz, ort, fahrzeug.kunde_id);
+    } else {
+      // Neuen Kunden erstellen und mit Fahrzeug verknüpfen
+      const result = db.prepare(`
+        INSERT INTO kunden (name, telefon, email, strasse, plz, ort)
+        VALUES (?, ?, ?, ?, ?, ?)
+      `).run(name || 'Unbekannt', telefon, email, strasse, plz, ort);
+      
+      db.prepare('UPDATE fahrzeuge SET kunde_id = ? WHERE id = ?').run(result.lastInsertRowid, id);
+    }
+    
+    // Notizen in fahrzeug_status speichern
+    if (notizen !== undefined) {
+      db.prepare(`
+        INSERT INTO fahrzeug_status (vin, notiz) 
+        VALUES (?, ?)
+        ON CONFLICT(vin) DO UPDATE SET notiz = ?
+      `).run(fahrzeug.vin, notizen, notizen);
+    }
+    
+    // Audit-Log
+    if (req.user) {
+      insertAuditLog({
+        vin: fahrzeug.vin,
+        aktion: 'Kundendaten aktualisiert',
+        feld: 'kunde',
+        alter_wert: null,
+        neuer_wert: name,
+        user_id: req.user.id,
+        user_name: req.user.username
+      });
+    }
+    
+    res.json({ success: true });
+  } catch (err) {
+    console.error('Kunde update error:', err);
+    res.status(500).json({ error: err.message });
+  }
+});
+
 // Alle Termine (optional mit VIN-Filter)
 router.get('/termine', (req, res) => {
   try {
