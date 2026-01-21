@@ -1,10 +1,13 @@
 FROM node:20-alpine
 
+# Build-Tools für native Module (better-sqlite3)
+RUN apk add --no-cache python3 make g++
+
 WORKDIR /app
 
 # Dependencies installieren
 COPY package*.json ./
-RUN npm ci --only=production
+RUN npm ci --only=production && npm rebuild better-sqlite3
 
 # App kopieren
 COPY . .
