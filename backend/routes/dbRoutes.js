@@ -1,6 +1,7 @@
 import express from 'express';
 import { getDb, getFaelligkeitenUebersicht, getAllFahrzeugStatus, upsertFahrzeugStatus, insertAuditLog, getAuditLogByVin, getAllFahrzeuge, getAllTermine, importParsedData } from '../db/database.js';
 import { adminOnly } from '../middleware/auth.js';
+import { displayKennzeichen } from '../utils/kennzeichenFormatter.js';
 
 const router = express.Router();
 
@@ -64,7 +65,13 @@ router.get('/faelligkeiten', (req, res) => {
       ORDER BY f.kennzeichen
     `).all();
     
-    res.json(data);
+    // Kennzeichen formatieren
+    const formatted = data.map(d => ({
+      ...d,
+      kennzeichen: displayKennzeichen(d.kennzeichen)
+    }));
+    
+    res.json(formatted);
   } catch (err) {
     res.status(500).json({ error: err.message });
   }
@@ -182,6 +189,36 @@ router.get('/fahrzeuge/:id', (req, res) => {
       } : null,
       termine
     });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// Fahrzeugdaten aktualisieren
+router.put('/fahrzeuge/:id', (req, res) => {
+  try {
+    const db = getDb();
+    const { id } = req.params;
+    const { kennzeichen, hersteller, modell } = req.body;
+    
+    const fahrzeug = db.prepare('SELECT * FROM fahrzeuge WHERE id = ?').get(id);
+    if (!fahrzeug) {
+      return res.status(404).json({ error: 'Fahrzeug nicht gefunden' });
+    }
+    
+    // Kennzeichen bereinigen (nur Großbuchstaben und Zahlen speichern)
+    const cleanKennzeichen = kennzeichen ? kennzeichen.toUpperCase().replace(/[^A-Z0-9]/g, '') : fahrzeug.kennzeichen;
+    
+    db.prepare(`
+      UPDATE fahrzeuge SET 
+        kennzeichen = ?,
+        hersteller = ?,
+        modell = ?,
+        updated_at = CURRENT_TIMESTAMP
+      WHERE id = ?
+    `).run(cleanKennzeichen, hersteller || fahrzeug.hersteller, modell || fahrzeug.modell, id);
+    
+    res.json({ success: true });
   } catch (err) {
     res.status(500).json({ error: err.message });
   }

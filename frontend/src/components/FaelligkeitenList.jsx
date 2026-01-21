@@ -43,6 +43,7 @@ export function FaelligkeitenList({ data, onRefresh, currentUser, token }) {
   const [parsedData, setParsedData] = useState(null)
   const [buchungsLink, setBuchungsLink] = useState(null)
   const [editKunde, setEditKunde] = useState({ name: '', telefon: '', email: '', strasse: '', plz: '', ort: '', notizen: '' })
+  const [editFahrzeug, setEditFahrzeug] = useState({ kennzeichen: '', hersteller: '', modell: '' })
 
   // Lade gespeicherte Status beim Mount
   useEffect(() => {
@@ -283,6 +284,11 @@ export function FaelligkeitenList({ data, onRefresh, currentUser, token }) {
       ort: fahrzeug.kundeOrt || '',
       notizen: ''
     })
+    setEditFahrzeug({
+      kennzeichen: fahrzeug.kennzeichen || '',
+      hersteller: fahrzeug.hersteller || '',
+      modell: fahrzeug.modell || ''
+    })
     // Audit-Log laden
     try {
       const res = await fetch(`/api/db/audit-log/${fahrzeug.vin}`, { headers: { 'Authorization': `Bearer ${token}` } })
@@ -323,6 +329,23 @@ export function FaelligkeitenList({ data, onRefresh, currentUser, token }) {
       }
     } catch (err) {
       console.error('Save kunde error:', err)
+    }
+  }
+
+  const handleSaveFahrzeug = async () => {
+    if (!infoModal?.fahrzeug_id) return
+    try {
+      const res = await fetch(`/api/db/fahrzeuge/${infoModal.fahrzeug_id}`, {
+        method: 'PUT',
+        headers: authHeaders,
+        body: JSON.stringify(editFahrzeug)
+      })
+      if (res.ok) {
+        onRefresh && onRefresh()
+        closeInfoModal()
+      }
+    } catch (err) {
+      console.error('Save fahrzeug error:', err)
     }
   }
 
@@ -1166,22 +1189,45 @@ export function FaelligkeitenList({ data, onRefresh, currentUser, token }) {
                 {infoModal.activeTab === 'fahrzeug' && (
                   <div className="space-y-6">
                     <div className="grid grid-cols-2 gap-4">
-                      <div className="bg-gray-50 rounded-xl p-4">
-                        <p className="text-xs text-gray-500 mb-1">Kennzeichen</p>
-                        <p className="text-lg font-bold text-gray-900">{infoModal.kennzeichen}</p>
+                      <div>
+                        <label className="block text-xs text-gray-500 mb-1">Kennzeichen</label>
+                        <input
+                          type="text"
+                          value={editFahrzeug.kennzeichen}
+                          onChange={e => setEditFahrzeug({ ...editFahrzeug, kennzeichen: e.target.value })}
+                          className="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-xl text-lg font-bold focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500"
+                        />
                       </div>
                       <div className="bg-gray-50 rounded-xl p-4">
                         <p className="text-xs text-gray-500 mb-1">Fahrgestellnummer</p>
                         <p className="text-sm font-mono text-gray-900">{infoModal.vin}</p>
                       </div>
-                      <div className="bg-gray-50 rounded-xl p-4">
-                        <p className="text-xs text-gray-500 mb-1">Hersteller</p>
-                        <p className="text-lg font-bold text-gray-900">{infoModal.hersteller || '–'}</p>
+                      <div>
+                        <label className="block text-xs text-gray-500 mb-1">Hersteller</label>
+                        <input
+                          type="text"
+                          value={editFahrzeug.hersteller}
+                          onChange={e => setEditFahrzeug({ ...editFahrzeug, hersteller: e.target.value })}
+                          className="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-xl focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500"
+                        />
                       </div>
-                      <div className="bg-gray-50 rounded-xl p-4">
-                        <p className="text-xs text-gray-500 mb-1">Modell</p>
-                        <p className="text-lg font-bold text-gray-900">{infoModal.modell || '–'}</p>
+                      <div>
+                        <label className="block text-xs text-gray-500 mb-1">Modell</label>
+                        <input
+                          type="text"
+                          value={editFahrzeug.modell}
+                          onChange={e => setEditFahrzeug({ ...editFahrzeug, modell: e.target.value })}
+                          className="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-xl focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500"
+                        />
                       </div>
+                    </div>
+                    <div className="flex justify-end pt-4 border-t border-gray-100">
+                      <button
+                        onClick={handleSaveFahrzeug}
+                        className="px-6 py-2.5 bg-emerald-600 text-white text-sm font-medium rounded-xl hover:bg-emerald-700 transition-colors"
+                      >
+                        Speichern
+                      </button>
                     </div>
                   </div>
                 )}
