@@ -4,6 +4,12 @@ import { adminOnly } from '../middleware/auth.js';
 
 const router = express.Router();
 
+// Hilfsfunktion: Anrede aus Namen entfernen
+function cleanName(name) {
+  if (!name) return name;
+  return name.replace(/^(Herr |Frau )/i, '').trim();
+}
+
 // Statistiken
 router.get('/stats', (req, res) => {
   try {
@@ -213,7 +219,7 @@ router.post('/fahrzeuge/:id/kunde', (req, res) => {
           plz = ?,
           ort = ?
         WHERE id = ?
-      `).run(name || 'Unbekannt', telefon, email, strasse, plz, ort, fahrzeug.kunde_id);
+      `).run(cleanName(name) || 'Unbekannt', telefon, email, strasse, plz, ort, fahrzeug.kunde_id);
       
       console.log('UPDATE RESULT:', result);
       
@@ -225,7 +231,7 @@ router.post('/fahrzeuge/:id/kunde', (req, res) => {
       const result = db.prepare(`
         INSERT INTO kunden (name, telefon, email, strasse, plz, ort)
         VALUES (?, ?, ?, ?, ?, ?)
-      `).run(name || 'Unbekannt', telefon, email, strasse, plz, ort);
+      `).run(cleanName(name) || 'Unbekannt', telefon, email, strasse, plz, ort);
       
       db.prepare('UPDATE fahrzeuge SET kunde_id = ? WHERE id = ?').run(result.lastInsertRowid, id);
     }

@@ -363,6 +363,15 @@ const migrations = {
       console.log('Migration 9: kunde_name Spalte wird nicht mehr verwendet (DROP nicht unterstützt)');
     }
   },
+
+  // Migration 10: "Herr " und "Frau " aus Kundennamen entfernen
+  10: () => {
+    db.exec(`
+      UPDATE kunden SET name = TRIM(SUBSTR(name, 6)) WHERE name LIKE 'Herr %';
+      UPDATE kunden SET name = TRIM(SUBSTR(name, 6)) WHERE name LIKE 'Frau %';
+    `);
+    console.log('Migration 10: Anreden aus Kundennamen entfernt');
+  },
 };
 
 // Migrationen ausführen
