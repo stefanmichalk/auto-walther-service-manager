@@ -26,12 +26,40 @@ router.get('/stats', (req, res) => {
 // Fälligkeiten-Übersicht
 router.get('/faelligkeiten', (req, res) => {
   try {
-    const data = getFaelligkeitenUebersicht();
-    // DEBUG: FGAW525 prüfen
-    const fgaw = data.find(d => d.kennzeichen === 'FGAW525');
-    if (fgaw) {
-      console.log('FGAW525 aus getFaelligkeitenUebersicht:', JSON.stringify(fgaw));
+    const db = getDb();
+    
+    // DEBUG: Fahrzeug und Kunde separat prüfen
+    const fzg = db.prepare(`SELECT id, kennzeichen, kunde_id FROM fahrzeuge WHERE kennzeichen = 'FGAW525'`).get();
+    console.log('FAHRZEUG FGAW525:', JSON.stringify(fzg));
+    if (fzg?.kunde_id) {
+      const kunde = db.prepare(`SELECT * FROM kunden WHERE id = ?`).get(fzg.kunde_id);
+      console.log('KUNDE MIT ID', fzg.kunde_id, ':', JSON.stringify(kunde));
     }
+    
+    // DIREKTE QUERY
+    const data = db.prepare(`
+      SELECT 
+        f.id as fahrzeug_id,
+        f.vin,
+        f.kennzeichen,
+        f.hersteller,
+        f.modell,
+        k.name as kunde_name,
+        k.strasse as kunde_strasse,
+        k.plz as kunde_plz,
+        k.ort as kunde_ort,
+        k.telefon as kunde_telefon,
+        k.email as kunde_email,
+        (SELECT faelligkeitsdatum FROM service_faelligkeiten WHERE fahrzeug_id = f.id ORDER BY faelligkeitsdatum ASC LIMIT 1) as service_faellig,
+        (SELECT bezeichnung FROM service_faelligkeiten WHERE fahrzeug_id = f.id ORDER BY faelligkeitsdatum ASC LIMIT 1) as service_bezeichnung,
+        (SELECT datum FROM termine WHERE fahrzeug_id = f.id AND typ = 'inspektion' ORDER BY datum ASC LIMIT 1) as inspektion_termin,
+        (SELECT vermerk FROM termine WHERE fahrzeug_id = f.id AND typ = 'inspektion' ORDER BY datum ASC LIMIT 1) as inspektion_vermerk,
+        (SELECT datum FROM termine WHERE fahrzeug_id = f.id AND typ = 'hu' ORDER BY datum ASC LIMIT 1) as hu_termin
+      FROM fahrzeuge f
+      LEFT JOIN kunden k ON f.kunde_id = k.id
+      ORDER BY f.kennzeichen
+    `).all();
+    
     res.json(data);
   } catch (err) {
     res.status(500).json({ error: err.message });
