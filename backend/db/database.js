@@ -938,3 +938,4 @@ export function updateUserRole(userId, role) {
 }
 
 export default db;
+// Force rebuild Wed Jan 21 09:54:58 CET 2026
