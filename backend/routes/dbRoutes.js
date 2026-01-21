@@ -34,13 +34,11 @@ router.get('/faelligkeiten', (req, res) => {
   try {
     const db = getDb();
     
-    // DEBUG: Fahrzeug und Kunde separat prüfen
-    const fzg = db.prepare(`SELECT id, kennzeichen, kunde_id FROM fahrzeuge WHERE kennzeichen = 'FGAW525'`).get();
-    console.log('FAHRZEUG FGAW525:', JSON.stringify(fzg));
-    if (fzg?.kunde_id) {
-      const kunde = db.prepare(`SELECT * FROM kunden WHERE id = ?`).get(fzg.kunde_id);
-      console.log('KUNDE MIT ID', fzg.kunde_id, ':', JSON.stringify(kunde));
-    }
+    // Einmalig: "Herr " und "Frau " aus allen Namen entfernen
+    db.exec(`
+      UPDATE kunden SET name = TRIM(SUBSTR(name, 6)) WHERE name LIKE 'Herr %';
+      UPDATE kunden SET name = TRIM(SUBSTR(name, 6)) WHERE name LIKE 'Frau %';
+    `);
     
     // DIREKTE QUERY
     const data = db.prepare(`
