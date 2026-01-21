@@ -333,6 +333,36 @@ const migrations = {
     `);
     console.log('Migration 8: Buchungs-Tokens Tabelle erstellt');
   },
+
+  // Migration 9: kunde_name aus fahrzeuge entfernen (Redundanz beseitigen)
+  9: () => {
+    // Sicherstellen dass alle Fahrzeuge ohne kunde_id aber mit kunde_name migriert sind
+    const fahrzeugeOhneKundeId = db.prepare(`
+      SELECT id, kunde_name FROM fahrzeuge 
+      WHERE kunde_id IS NULL AND kunde_name IS NOT NULL AND kunde_name != ''
+    `).all();
+    
+    for (const f of fahrzeugeOhneKundeId) {
+      // Kunde suchen oder erstellen
+      let kunde = db.prepare(`SELECT id FROM kunden WHERE name = ?`).get(f.kunde_name);
+      if (!kunde) {
+        db.prepare(`INSERT INTO kunden (name) VALUES (?)`).run(f.kunde_name);
+        kunde = db.prepare(`SELECT id FROM kunden WHERE name = ?`).get(f.kunde_name);
+      }
+      if (kunde) {
+        db.prepare(`UPDATE fahrzeuge SET kunde_id = ? WHERE id = ?`).run(kunde.id, f.id);
+      }
+    }
+    
+    // SQLite 3.35.0+ unterstützt DROP COLUMN
+    try {
+      db.exec(`ALTER TABLE fahrzeuge DROP COLUMN kunde_name`);
+      console.log('Migration 9: kunde_name Spalte aus fahrzeuge entfernt');
+    } catch (e) {
+      // Ältere SQLite-Version - Spalte bleibt, wird aber nicht mehr verwendet
+      console.log('Migration 9: kunde_name Spalte wird nicht mehr verwendet (DROP nicht unterstützt)');
+    }
+  },
 };
 
 // Migrationen ausführen
@@ -371,13 +401,12 @@ runMigrations();
 const stmts = {
   // Fahrzeuge
   insertFahrzeug: db.prepare(`
-    INSERT INTO fahrzeuge (vin, kennzeichen, hersteller, modell, erstzulassung, kunde_name)
-    VALUES (@vin, @kennzeichen, @hersteller, @modell, @erstzulassung, @kunde_name)
+    INSERT INTO fahrzeuge (vin, kennzeichen, hersteller, modell, erstzulassung)
+    VALUES (@vin, @kennzeichen, @hersteller, @modell, @erstzulassung)
     ON CONFLICT(vin) DO UPDATE SET
       kennzeichen = COALESCE(@kennzeichen, kennzeichen),
       hersteller = COALESCE(@hersteller, hersteller),
       modell = COALESCE(@modell, modell),
-      kunde_name = COALESCE(@kunde_name, kunde_name),
       updated_at = CURRENT_TIMESTAMP
   `),
   
@@ -524,7 +553,7 @@ const stmts = {
       f.kennzeichen,
       f.hersteller,
       f.modell,
-      f.kunde_name,
+      k.name as kunde_name,
       k.strasse as kunde_strasse,
       k.plz as kunde_plz,
       k.ort as kunde_ort,
@@ -648,13 +677,12 @@ export function importParsedData(parsedData) {
         kennzeichen: formattedKennzeichen,
         hersteller: record.Hersteller || null,
         modell: record.Modell || null,
-        erstzulassung: record.Erstzulassung || null,
-        kunde_name: kundeName
+        erstzulassung: record.Erstzulassung || null
       });
       
       const fahrzeug = stmts.getFahrzeugByVin.get(record.Fahrgestellnr);
       
-      // WICHTIG: Kunde aus PDF anlegen/verknüpfen!
+      // Kunde aus PDF anlegen/verknüpfen (setzt kunde_id)
       createOrUpdateKunde(fahrzeug, record);
       
       if (fahrzeug && record.HU_Datum) {
@@ -689,13 +717,12 @@ export function importParsedData(parsedData) {
         kennzeichen: formattedKennzeichen,
         hersteller: record.Hersteller || null,
         modell: null,
-        erstzulassung: record.Erstzulassung || null,
-        kunde_name: kundeName
+        erstzulassung: record.Erstzulassung || null
       });
       
       const fahrzeug = stmts.getFahrzeugByVin.get(record.Fahrgestellnr);
       
-      // WICHTIG: Kunde aus PDF anlegen/verknüpfen!
+      // Kunde aus PDF anlegen/verknüpfen (setzt kunde_id)
       createOrUpdateKunde(fahrzeug, record);
       
       if (fahrzeug && record.Inspektion) {
@@ -731,8 +758,7 @@ export function importParsedData(parsedData) {
         kennzeichen: formattedKennzeichen,
         hersteller: null,
         modell: null,
-        erstzulassung: null,
-        kunde_name: kundeName
+        erstzulassung: null
       });
       
       const fahrzeug = stmts.getFahrzeugByVin.get(record.Fahrgestellnr);

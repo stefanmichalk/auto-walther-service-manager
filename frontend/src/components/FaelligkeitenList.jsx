@@ -130,8 +130,8 @@ export function FaelligkeitenList({ data, onRefresh, currentUser, token }) {
       if (filterType !== 'alle') {
         const hasService = !!f.serviceFaellig || !!f.inspektionTermin
         const hasHU = !!f.huTermin
-        if (filterType === 'service' && (!hasService || hasHU)) return false
-        if (filterType === 'hu' && (!hasHU || hasService)) return false
+        if (filterType === 'service' && !hasService) return false
+        if (filterType === 'hu' && !hasHU) return false
         if (filterType === 'hu_service' && (!hasHU || !hasService)) return false
       }
       return true
@@ -491,8 +491,8 @@ export function FaelligkeitenList({ data, onRefresh, currentUser, token }) {
               if (filterType !== 'alle') {
                 const hasService = !!f.serviceFaellig || !!f.inspektionTermin
                 const hasHU = !!f.huTermin
-                if (filterType === 'service' && (!hasService || hasHU)) return false
-                if (filterType === 'hu' && (!hasHU || hasService)) return false
+                if (filterType === 'service' && !hasService) return false
+                if (filterType === 'hu' && !hasHU) return false
                 if (filterType === 'hu_service' && (!hasHU || !hasService)) return false
               }
               
@@ -607,8 +607,8 @@ export function FaelligkeitenList({ data, onRefresh, currentUser, token }) {
                 if (filterType !== 'alle') {
                   const hasService = !!f.serviceFaellig || !!f.inspektionTermin
                   const hasHU = !!f.huTermin
-                  if (filterType === 'service' && (!hasService || hasHU)) return false
-                  if (filterType === 'hu' && (!hasHU || hasService)) return false
+                  if (filterType === 'service' && !hasService) return false
+                  if (filterType === 'hu' && !hasHU) return false
                   if (filterType === 'hu_service' && (!hasHU || !hasService)) return false
                 }
                 
