@@ -165,8 +165,13 @@ router.post('/fahrzeuge/:id/kunde', (req, res) => {
     
     // Kunde aktualisieren oder erstellen
     if (fahrzeug.kunde_id) {
+      // DEBUG: Kunde vor Update
+      const kundeBefore = db.prepare('SELECT * FROM kunden WHERE id = ?').get(fahrzeug.kunde_id);
+      console.log('KUNDE VOR UPDATE:', JSON.stringify(kundeBefore));
+      console.log('UPDATE MIT:', { name, telefon, email, strasse, plz, ort, kunde_id: fahrzeug.kunde_id });
+      
       // Existierenden Kunden aktualisieren
-      db.prepare(`
+      const result = db.prepare(`
         UPDATE kunden SET 
           name = ?,
           telefon = ?,
@@ -176,6 +181,12 @@ router.post('/fahrzeuge/:id/kunde', (req, res) => {
           ort = ?
         WHERE id = ?
       `).run(name || 'Unbekannt', telefon, email, strasse, plz, ort, fahrzeug.kunde_id);
+      
+      console.log('UPDATE RESULT:', result);
+      
+      // DEBUG: Kunde nach Update
+      const kundeAfter = db.prepare('SELECT * FROM kunden WHERE id = ?').get(fahrzeug.kunde_id);
+      console.log('KUNDE NACH UPDATE:', JSON.stringify(kundeAfter));
     } else {
       // Neuen Kunden erstellen und mit Fahrzeug verknüpfen
       const result = db.prepare(`
