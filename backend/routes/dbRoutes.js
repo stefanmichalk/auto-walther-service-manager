@@ -27,6 +27,11 @@ router.get('/stats', (req, res) => {
 router.get('/faelligkeiten', (req, res) => {
   try {
     const data = getFaelligkeitenUebersicht();
+    // DEBUG: FGAW525 prüfen
+    const fgaw = data.find(d => d.kennzeichen === 'FGAW525');
+    if (fgaw) {
+      console.log('FGAW525 aus getFaelligkeitenUebersicht:', JSON.stringify(fgaw));
+    }
     res.json(data);
   } catch (err) {
     res.status(500).json({ error: err.message });
