@@ -168,14 +168,14 @@ router.post('/fahrzeuge/:id/kunde', (req, res) => {
       // Existierenden Kunden aktualisieren
       db.prepare(`
         UPDATE kunden SET 
-          name = COALESCE(?, name),
+          name = ?,
           telefon = ?,
           email = ?,
           strasse = ?,
           plz = ?,
           ort = ?
         WHERE id = ?
-      `).run(name, telefon, email, strasse, plz, ort, fahrzeug.kunde_id);
+      `).run(name || 'Unbekannt', telefon, email, strasse, plz, ort, fahrzeug.kunde_id);
     } else {
       // Neuen Kunden erstellen und mit Fahrzeug verknüpfen
       const result = db.prepare(`
