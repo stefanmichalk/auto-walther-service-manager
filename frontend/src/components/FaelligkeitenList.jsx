@@ -39,6 +39,9 @@ export function FaelligkeitenList({ data, onRefresh, currentUser, token }) {
   const [filterUrgency, setFilterUrgency] = useState('alle')
   const [filterStatus, setFilterStatus] = useState('alle')
   const [filterType, setFilterType] = useState('alle')
+  const [filterMarke, setFilterMarke] = useState('alle')
+  const [filterMonat, setFilterMonat] = useState('alle')
+  const [filterJahr, setFilterJahr] = useState('alle')
   const [importPreview, setImportPreview] = useState(null)
   const [parsedData, setParsedData] = useState(null)
   const [buchungsLink, setBuchungsLink] = useState(null)
@@ -135,6 +138,17 @@ export function FaelligkeitenList({ data, onRefresh, currentUser, token }) {
         if (filterType === 'hu' && !hasHU) return false
         if (filterType === 'hu_service' && (!hasHU || !hasService)) return false
       }
+      // Marke Filter
+      if (filterMarke !== 'alle' && f.hersteller?.toUpperCase() !== filterMarke) return false
+      // Monat/Jahr Filter - basierend auf nächster Fälligkeit
+      const faelligDatum = f.serviceFaellig || f.inspektionTermin || f.huTermin
+      if (faelligDatum) {
+        const date = new Date(faelligDatum)
+        if (filterMonat !== 'alle' && (date.getMonth() + 1) !== parseInt(filterMonat)) return false
+        if (filterJahr !== 'alle' && date.getFullYear() !== parseInt(filterJahr)) return false
+      } else {
+        if (filterMonat !== 'alle' || filterJahr !== 'alle') return false
+      }
       return true
     })
   }
@@ -143,13 +157,14 @@ export function FaelligkeitenList({ data, onRefresh, currentUser, token }) {
     const filtered = getFilteredData()
     
     // CSV Header
-    const headers = ['Kennzeichen', 'VIN', 'Kunde', 'Straße', 'PLZ', 'Ort', 'Telefon', 'E-Mail', 'Service', 'Inspektion', 'HU', 'Nächste Fälligkeit', 'Status']
+    const headers = ['Marke', 'Kennzeichen', 'VIN', 'Kunde', 'Straße', 'PLZ', 'Ort', 'Telefon', 'E-Mail', 'Service', 'Inspektion', 'HU', 'Nächste Fälligkeit', 'Status']
     
     // CSV Rows
     const rows = filtered.map(f => {
       const status = statusMap[f.vin] || {}
       const statusText = status.service_termin ? `Termin: ${status.service_termin}` : status.angeschrieben ? 'Angeschrieben' : 'Offen'
       return [
+        (f.hersteller || '').toUpperCase(),
         f.kennzeichen || '',
         f.vin || '',
         f.kunde || '',
@@ -464,6 +479,51 @@ export function FaelligkeitenList({ data, onRefresh, currentUser, token }) {
             <option value="hu_service">HU + Service</option>
           </select>
 
+          <select
+            value={filterMarke}
+            onChange={(e) => setFilterMarke(e.target.value)}
+            className="px-4 py-2 text-sm bg-gray-50 border border-gray-200 focus:border-emerald-500 outline-none rounded-xl"
+          >
+            <option value="alle">Alle Marken</option>
+            {[...new Set(data.map(f => f.hersteller?.toUpperCase()).filter(Boolean))].sort().map(marke => (
+              <option key={marke} value={marke}>{marke}</option>
+            ))}
+          </select>
+
+          <select
+            value={filterMonat}
+            onChange={(e) => setFilterMonat(e.target.value)}
+            className="px-4 py-2 text-sm bg-gray-50 border border-gray-200 focus:border-emerald-500 outline-none rounded-xl"
+          >
+            <option value="alle">Alle Monate</option>
+            <option value="1">Januar</option>
+            <option value="2">Februar</option>
+            <option value="3">März</option>
+            <option value="4">April</option>
+            <option value="5">Mai</option>
+            <option value="6">Juni</option>
+            <option value="7">Juli</option>
+            <option value="8">August</option>
+            <option value="9">September</option>
+            <option value="10">Oktober</option>
+            <option value="11">November</option>
+            <option value="12">Dezember</option>
+          </select>
+
+          <select
+            value={filterJahr}
+            onChange={(e) => setFilterJahr(e.target.value)}
+            className="px-4 py-2 text-sm bg-gray-50 border border-gray-200 focus:border-emerald-500 outline-none rounded-xl"
+          >
+            <option value="alle">Alle Jahre</option>
+            {[...new Set(data.flatMap(f => {
+              const dates = [f.serviceFaellig, f.inspektionTermin, f.huTermin].filter(Boolean)
+              return dates.map(d => new Date(d).getFullYear()).filter(y => !isNaN(y))
+            }))].sort().map(jahr => (
+              <option key={jahr} value={jahr}>{jahr}</option>
+            ))}
+          </select>
+
           <div className="flex items-center gap-2 ml-auto">
             <button
               onClick={() => setShowForm(!showForm)}
@@ -497,30 +557,7 @@ export function FaelligkeitenList({ data, onRefresh, currentUser, token }) {
       <div className="mt-4 flex-1 overflow-y-auto min-h-0">
         {/* Mobile: Card View */}
         <div className="md:hidden space-y-2">
-          {data
-            .filter(f => {
-              const status = statusMap[f.vin] || {}
-              if (status.ausgetragen || status.wiedervorlage_datum) return false
-              if (searchTerm) {
-                const term = searchTerm.toLowerCase()
-                if (!f.kennzeichen?.toLowerCase().includes(term) && !f.kunde?.toLowerCase().includes(term)) return false
-              }
-              if (filterUrgency !== 'alle' && f.urgency !== filterUrgency) return false
-              if (filterStatus === 'offen' && (status.angeschrieben || status.service_termin)) return false
-              if (filterStatus === 'angeschrieben' && !status.angeschrieben) return false
-              if (filterStatus === 'termin' && !status.service_termin) return false
-              
-              // Filter: Typ
-              if (filterType !== 'alle') {
-                const hasService = !!f.serviceFaellig || !!f.inspektionTermin
-                const hasHU = !!f.huTermin
-                if (filterType === 'service' && !hasService) return false
-                if (filterType === 'hu' && !hasHU) return false
-                if (filterType === 'hu_service' && (!hasHU || !hasService)) return false
-              }
-              
-              return true
-            })
+          {getFilteredData()
             .sort((a, b) => {
               const parseDate = (dateStr) => {
                 if (!dateStr) return new Date(9999, 11, 31)
@@ -603,40 +640,7 @@ export function FaelligkeitenList({ data, onRefresh, currentUser, token }) {
             </tr>
           </thead>
           <tbody className="divide-y divide-gray-100">
-            {data
-              .filter(f => {
-                const status = statusMap[f.vin] || {}
-                // Ausgetragen/Wiedervorlage ausfiltern
-                if (status.ausgetragen || status.wiedervorlage_datum) return false
-                
-                // Suche
-                if (searchTerm) {
-                  const term = searchTerm.toLowerCase()
-                  const matchKennzeichen = f.kennzeichen?.toLowerCase().includes(term)
-                  const matchKunde = f.kunde?.toLowerCase().includes(term)
-                  const matchVin = f.vin?.toLowerCase().includes(term)
-                  if (!matchKennzeichen && !matchKunde && !matchVin) return false
-                }
-                
-                // Filter: Dringlichkeit
-                if (filterUrgency !== 'alle' && f.urgency !== filterUrgency) return false
-                
-                // Filter: Status
-                if (filterStatus === 'offen' && (status.angeschrieben || status.service_termin)) return false
-                if (filterStatus === 'angeschrieben' && !status.angeschrieben) return false
-                if (filterStatus === 'termin' && !status.service_termin) return false
-                
-                // Filter: Typ
-                if (filterType !== 'alle') {
-                  const hasService = !!f.serviceFaellig || !!f.inspektionTermin
-                  const hasHU = !!f.huTermin
-                  if (filterType === 'service' && !hasService) return false
-                  if (filterType === 'hu' && !hasHU) return false
-                  if (filterType === 'hu_service' && (!hasHU || !hasService)) return false
-                }
-                
-                return true
-              })
+            {getFilteredData()
               .sort((a, b) => {
                 // Nach Datum aufsteigend sortieren
                 const parseDate = (dateStr) => {
