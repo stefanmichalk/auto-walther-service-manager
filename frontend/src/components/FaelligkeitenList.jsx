@@ -418,22 +418,20 @@ export function FaelligkeitenList({ data, onRefresh, currentUser, token }) {
   return (
     <div className="flex flex-col h-full">
       {/* Stats Cards */}
-      <div className="grid grid-cols-4 gap-4 mb-6 flex-shrink-0">
+      <div className="grid grid-cols-2 gap-4 mb-6 flex-shrink-0">
         <div className="bg-white rounded-2xl border border-gray-100 p-5 shadow-sm">
-          <p className="text-sm text-gray-500 mb-1">Gesamt</p>
-          <p className="text-2xl font-bold text-gray-900">{data.length}</p>
+          <p className="text-sm text-gray-500 mb-1">Ohne Termin</p>
+          <p className="text-2xl font-bold text-red-600">{data.filter(f => {
+            const status = statusMap[f.vin] || {}
+            return !status.service_termin && !status.ausgetragen && !status.wiedervorlage_datum
+          }).length}</p>
         </div>
         <div className="bg-white rounded-2xl border border-gray-100 p-5 shadow-sm">
-          <p className="text-sm text-gray-500 mb-1">Überfällig</p>
-          <p className="text-2xl font-bold text-red-600">{data.filter(f => f.urgency === 'ueberfaellig').length}</p>
-        </div>
-        <div className="bg-white rounded-2xl border border-gray-100 p-5 shadow-sm">
-          <p className="text-sm text-gray-500 mb-1">Diese Woche</p>
-          <p className="text-2xl font-bold text-amber-600">{data.filter(f => f.urgency === 'dringend').length}</p>
-        </div>
-        <div className="bg-white rounded-2xl border border-gray-100 p-5 shadow-sm">
-          <p className="text-sm text-gray-500 mb-1">Mit Termin</p>
-          <p className="text-2xl font-bold text-emerald-600">{Object.values(statusMap).filter(s => s.service_termin).length}</p>
+          <p className="text-sm text-gray-500 mb-1">Angeschrieben ohne Termin</p>
+          <p className="text-2xl font-bold text-amber-600">{data.filter(f => {
+            const status = statusMap[f.vin] || {}
+            return status.angeschrieben && !status.service_termin && !status.ausgetragen && !status.wiedervorlage_datum
+          }).length}</p>
         </div>
       </div>
 
