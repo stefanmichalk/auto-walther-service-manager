@@ -140,14 +140,16 @@ export function FaelligkeitenList({ data, onRefresh, currentUser, token }) {
       }
       // Marke Filter
       if (filterMarke !== 'alle' && f.hersteller?.toUpperCase() !== filterMarke) return false
-      // Monat/Jahr Filter - basierend auf nächster Fälligkeit
-      const faelligDatum = f.serviceFaellig || f.inspektionTermin || f.huTermin
-      if (faelligDatum) {
-        const date = new Date(faelligDatum)
-        if (filterMonat !== 'alle' && (date.getMonth() + 1) !== parseInt(filterMonat)) return false
-        if (filterJahr !== 'alle' && date.getFullYear() !== parseInt(filterJahr)) return false
-      } else {
-        if (filterMonat !== 'alle' || filterJahr !== 'alle') return false
+      // Monat/Jahr Filter - basierend auf linker Datum-Spalte (nextDate)
+      if (filterMonat !== 'alle' || filterJahr !== 'alle') {
+        if (!f.nextDate) return false
+        // nextDate ist im Format "DD.MM.YYYY"
+        const parts = f.nextDate.split('.')
+        if (parts.length !== 3) return false
+        const monat = parseInt(parts[1])
+        const jahr = parseInt(parts[2])
+        if (filterMonat !== 'alle' && monat !== parseInt(filterMonat)) return false
+        if (filterJahr !== 'alle' && jahr !== parseInt(filterJahr)) return false
       }
       return true
     })
@@ -516,10 +518,11 @@ export function FaelligkeitenList({ data, onRefresh, currentUser, token }) {
             className="px-4 py-2 text-sm bg-gray-50 border border-gray-200 focus:border-emerald-500 outline-none rounded-xl"
           >
             <option value="alle">Alle Jahre</option>
-            {[...new Set(data.flatMap(f => {
-              const dates = [f.serviceFaellig, f.inspektionTermin, f.huTermin].filter(Boolean)
-              return dates.map(d => new Date(d).getFullYear()).filter(y => !isNaN(y))
-            }))].sort().map(jahr => (
+            {[...new Set(data.map(f => {
+              if (!f.nextDate) return null
+              const parts = f.nextDate.split('.')
+              return parts.length === 3 ? parseInt(parts[2]) : null
+            }).filter(y => y && !isNaN(y)))].sort().map(jahr => (
               <option key={jahr} value={jahr}>{jahr}</option>
             ))}
           </select>
