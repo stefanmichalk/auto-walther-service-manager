@@ -421,16 +421,16 @@ export function FaelligkeitenList({ data, onRefresh, currentUser, token }) {
       <div className="grid grid-cols-2 gap-4 mb-6 flex-shrink-0">
         <div className="bg-white rounded-2xl border border-gray-100 p-5 shadow-sm">
           <p className="text-sm text-gray-500 mb-1">Ohne Termin</p>
-          <p className="text-2xl font-bold text-red-600">{data.filter(f => {
+          <p className="text-2xl font-bold text-red-600">{getFilteredData().filter(f => {
             const status = statusMap[f.vin] || {}
-            return !status.service_termin && !status.ausgetragen && !status.wiedervorlage_datum
+            return !status.service_termin
           }).length}</p>
         </div>
         <div className="bg-white rounded-2xl border border-gray-100 p-5 shadow-sm">
           <p className="text-sm text-gray-500 mb-1">Angeschrieben ohne Termin</p>
-          <p className="text-2xl font-bold text-amber-600">{data.filter(f => {
+          <p className="text-2xl font-bold text-amber-600">{getFilteredData().filter(f => {
             const status = statusMap[f.vin] || {}
-            return status.angeschrieben && !status.service_termin && !status.ausgetragen && !status.wiedervorlage_datum
+            return status.angeschrieben && !status.service_termin
           }).length}</p>
         </div>
       </div>
