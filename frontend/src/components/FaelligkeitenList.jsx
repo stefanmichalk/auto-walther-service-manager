@@ -130,6 +130,7 @@ export function FaelligkeitenList({ data, onRefresh, currentUser, token }) {
       if (filterUrgency !== 'alle' && f.urgency !== filterUrgency) return false
       if (filterStatus === 'offen' && (status.angeschrieben || status.service_termin)) return false
       if (filterStatus === 'angeschrieben' && !status.angeschrieben) return false
+      if (filterStatus === 'angeschrieben_ohne_termin' && (!status.angeschrieben || status.service_termin)) return false
       if (filterStatus === 'termin' && !status.service_termin) return false
       if (filterType !== 'alle') {
         const hasService = !!f.serviceFaellig || !!f.inspektionTermin
@@ -467,6 +468,7 @@ export function FaelligkeitenList({ data, onRefresh, currentUser, token }) {
             <option value="alle">Alle Status</option>
             <option value="offen">Offen</option>
             <option value="angeschrieben">Angeschrieben</option>
+            <option value="angeschrieben_ohne_termin">Angeschrieben ohne Termin</option>
             <option value="termin">Mit Termin</option>
           </select>
           
