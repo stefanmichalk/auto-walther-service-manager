@@ -71,6 +71,10 @@ export function FaelligkeitenList({ data, onRefresh, currentUser, token }) {
 
   const handleStatusChange = async (vin, field, value) => {
     const current = statusMap[vin] || { angeschrieben: false, service_termin: '', nachgefasst: false }
+    
+    // Keine Änderung wenn Wert gleich bleibt (verhindert ungewollte Speicherung beim Kalender-Blättern)
+    if (current[field] === value) return
+    
     const updated = { ...current, [field]: value }
     
     setStatusMap(prev => ({ ...prev, [vin]: updated }))
@@ -122,9 +126,13 @@ export function FaelligkeitenList({ data, onRefresh, currentUser, token }) {
       if (status.ausgetragen || status.wiedervorlage_datum) return false
       if (searchTerm) {
         const term = searchTerm.toLowerCase()
-        const matchKennzeichen = f.kennzeichen?.toLowerCase().includes(term)
-        const matchKunde = f.kunde?.toLowerCase().includes(term)
-        const matchVin = f.vin?.toLowerCase().includes(term)
+        const termClean = term.replace(/[^a-z0-9äöüß]/gi, '')
+        const kennzeichenClean = f.kennzeichen?.toLowerCase().replace(/[^a-z0-9äöüß]/gi, '') || ''
+        const kundeClean = f.kunde?.toLowerCase().replace(/[^a-z0-9äöüß]/gi, '') || ''
+        const vinClean = f.vin?.toLowerCase().replace(/[^a-z0-9äöüß]/gi, '') || ''
+        const matchKennzeichen = f.kennzeichen?.toLowerCase().includes(term) || kennzeichenClean.includes(termClean)
+        const matchKunde = f.kunde?.toLowerCase().includes(term) || kundeClean.includes(termClean)
+        const matchVin = f.vin?.toLowerCase().includes(term) || vinClean.includes(termClean)
         if (!matchKennzeichen && !matchKunde && !matchVin) return false
       }
       if (filterUrgency !== 'alle' && f.urgency !== filterUrgency) return false
