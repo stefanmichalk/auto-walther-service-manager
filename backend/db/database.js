@@ -1,5 +1,6 @@
 import Database from 'better-sqlite3';
 import path from 'path';
+import fs from 'fs';
 import { fileURLToPath } from 'url';
 import crypto from 'crypto';
 import { formatKennzeichen } from '../utils/kennzeichenFormatter.js';
@@ -945,6 +946,34 @@ export function updateUserActive(userId, active) {
 export function updateUserRole(userId, role) {
   return db.prepare(`UPDATE users SET role = ? WHERE id = ?`).run(role, userId);
 }
+
+// Backup functions
+
+const backupPath = path.join(__dirname, 'inspector_backup.db');
+
+export function createBackup() {
+  try {
+    // SQLite backup via file copy
+    db.exec('VACUUM'); // Erst aufräumen
+    fs.copyFileSync(dbPath, backupPath);
+    console.log('Datenbank-Backup erstellt:', backupPath);
+    return true;
+  } catch (err) {
+    console.error('Backup-Fehler:', err);
+    return false;
+  }
+}
+
+export function getBackupPath() {
+  return backupPath;
+}
+
+export function getDbPath() {
+  return dbPath;
+}
+
+// Automatisches Backup beim Start
+createBackup();
 
 export default db;
 // Force rebuild Wed Jan 21 09:54:58 CET 2026

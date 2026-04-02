@@ -1,7 +1,8 @@
 import express from 'express';
-import { getDb, getFaelligkeitenUebersicht, getAllFahrzeugStatus, upsertFahrzeugStatus, insertAuditLog, getAuditLogByVin, getAllFahrzeuge, getAllTermine, importParsedData } from '../db/database.js';
+import { getDb, getFaelligkeitenUebersicht, getAllFahrzeugStatus, upsertFahrzeugStatus, insertAuditLog, getAuditLogByVin, getAllFahrzeuge, getAllTermine, importParsedData, createBackup, getDbPath } from '../db/database.js';
 import { adminOnly } from '../middleware/auth.js';
 import { displayKennzeichen } from '../utils/kennzeichenFormatter.js';
+import path from 'path';
 
 const router = express.Router();
 
@@ -823,6 +824,36 @@ router.get('/auslastung/:datum', (req, res) => {
     `).all(datum);
     
     res.json({ termine, services });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// Datenbank-Backup erstellen und herunterladen
+router.get('/backup/download', adminOnly, (req, res) => {
+  try {
+    // Frisches Backup erstellen
+    createBackup();
+    
+    const dbPath = getDbPath();
+    const filename = `inspector_backup_${new Date().toISOString().split('T')[0]}.db`;
+    
+    res.download(dbPath, filename, (err) => {
+      if (err) {
+        console.error('Download-Fehler:', err);
+        res.status(500).json({ error: 'Download fehlgeschlagen' });
+      }
+    });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// Manuelles Backup erstellen
+router.post('/backup/create', adminOnly, (req, res) => {
+  try {
+    const success = createBackup();
+    res.json({ success, message: success ? 'Backup erstellt' : 'Backup fehlgeschlagen' });
   } catch (err) {
     res.status(500).json({ error: err.message });
   }
