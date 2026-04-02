@@ -61,7 +61,8 @@ export function FaelligkeitenList({ data, onRefresh, currentUser, token }) {
             service_termin: s.service_termin || '', 
             nachgefasst: !!s.nachgefasst,
             ausgetragen: !!s.ausgetragen,
-            wiedervorlage_datum: s.wiedervorlage_datum || ''
+            wiedervorlage_datum: s.wiedervorlage_datum || '',
+            notiz: s.notiz || ''
           }
         })
         setStatusMap(map)
@@ -308,7 +309,7 @@ export function FaelligkeitenList({ data, onRefresh, currentUser, token }) {
       strasse: fahrzeug.kundeStrasse || '',
       plz: fahrzeug.kundePlz || '',
       ort: fahrzeug.kundeOrt || '',
-      notizen: ''
+      notizen: statusMap[fahrzeug.vin]?.notiz || ''
     })
     setEditFahrzeug({
       kennzeichen: fahrzeug.kennzeichen || '',
