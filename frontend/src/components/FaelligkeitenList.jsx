@@ -447,13 +447,25 @@ export function FaelligkeitenList({ data, onRefresh, currentUser, token }) {
       <div className="bg-white rounded-2xl border border-gray-100 shadow-sm flex-1 flex flex-col overflow-hidden">
         {/* Header */}
         <div className="flex items-center gap-3 p-4 border-b border-gray-100">
-          <input
-            type="text"
-            placeholder="Suche..."
-            value={searchTerm}
-            onChange={(e) => setSearchTerm(e.target.value)}
-            className="w-64 px-4 py-2 text-sm bg-gray-50 border border-gray-200 focus:border-emerald-500 focus:ring-2 focus:ring-emerald-500/20 outline-none transition-all rounded-xl"
-          />
+          <div className="relative">
+            <input
+              type="text"
+              placeholder="Suche..."
+              value={searchTerm}
+              onChange={(e) => setSearchTerm(e.target.value)}
+              className="w-64 px-4 py-2 pr-8 text-sm bg-gray-50 border border-gray-200 focus:border-emerald-500 focus:ring-2 focus:ring-emerald-500/20 outline-none transition-all rounded-xl"
+            />
+            {searchTerm && (
+              <button
+                onClick={() => setSearchTerm('')}
+                className="absolute right-2 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600"
+              >
+                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                </svg>
+              </button>
+            )}
+          </div>
           
           <select
             value={filterUrgency}
