@@ -1,5 +1,5 @@
 import express from 'express';
-import { getDb, getFaelligkeitenUebersicht, getAllFahrzeugStatus, upsertFahrzeugStatus, insertAuditLog, getAuditLogByVin, getAllFahrzeuge, getAllTermine, importParsedData, getDbPath } from '../db/database.js';
+import { getDb, getFaelligkeitenUebersicht, getAllFahrzeugStatus, upsertFahrzeugStatus, insertAuditLog, getAuditLogByVin, getAllFahrzeuge, getAllTermine, importParsedData } from '../db/database.js';
 import { adminOnly } from '../middleware/auth.js';
 import { displayKennzeichen } from '../utils/kennzeichenFormatter.js';
 
@@ -823,17 +823,6 @@ router.get('/auslastung/:datum', (req, res) => {
     `).all(datum);
     
     res.json({ termine, services });
-  } catch (err) {
-    res.status(500).json({ error: err.message });
-  }
-});
-
-// Datenbank-Backup herunterladen (manuell)
-router.get('/backup/download', adminOnly, (req, res) => {
-  try {
-    const dbPath = getDbPath();
-    const filename = `inspector_backup_${new Date().toISOString().split('T')[0]}.db`;
-    res.download(dbPath, filename);
   } catch (err) {
     res.status(500).json({ error: err.message });
   }
