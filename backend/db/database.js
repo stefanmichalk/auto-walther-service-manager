@@ -953,11 +953,13 @@ const backupPath = path.join(__dirname, 'inspector_backup.db');
 
 export function createBackup() {
   try {
-    // SQLite backup via file copy
-    db.exec('VACUUM'); // Erst aufräumen
-    fs.copyFileSync(dbPath, backupPath);
-    console.log('Datenbank-Backup erstellt:', backupPath);
-    return true;
+    // SQLite backup via file copy (ohne VACUUM - kann Probleme machen)
+    if (fs.existsSync(dbPath)) {
+      fs.copyFileSync(dbPath, backupPath);
+      console.log('Datenbank-Backup erstellt:', backupPath);
+      return true;
+    }
+    return false;
   } catch (err) {
     console.error('Backup-Fehler:', err);
     return false;
@@ -971,9 +973,6 @@ export function getBackupPath() {
 export function getDbPath() {
   return dbPath;
 }
-
-// Automatisches Backup beim Start
-createBackup();
 
 export default db;
 // Force rebuild Wed Jan 21 09:54:58 CET 2026
