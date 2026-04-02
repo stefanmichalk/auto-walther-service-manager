@@ -732,7 +732,11 @@ export function FaelligkeitenList({ data, onRefresh, currentUser, token }) {
                     >
                       <div className="font-medium text-gray-900 flex items-center gap-1">
                         {f.kennzeichen || '–'}
-                        {status.notiz && <span title={status.notiz} className="text-amber-500">📝</span>}
+                        {status.notiz && (
+                          <svg title={status.notiz} className="w-3.5 h-3.5 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 8h10M7 12h4m1 8l-4-4H5a2 2 0 01-2-2V6a2 2 0 012-2h14a2 2 0 012 2v8a2 2 0 01-2 2h-3l-4 4z" />
+                          </svg>
+                        )}
                         <InformationCircleIcon className="w-3.5 h-3.5 text-gray-400" />
                       </div>
                       <div className="text-xs text-gray-500 truncate max-w-[140px]" title={f.kunde}>
