@@ -732,6 +732,7 @@ export function FaelligkeitenList({ data, onRefresh, currentUser, token }) {
                     >
                       <div className="font-medium text-gray-900 flex items-center gap-1">
                         {f.kennzeichen || '–'}
+                        {status.notiz && <span title={status.notiz} className="text-amber-500">📝</span>}
                         <InformationCircleIcon className="w-3.5 h-3.5 text-gray-400" />
                       </div>
                       <div className="text-xs text-gray-500 truncate max-w-[140px]" title={f.kunde}>
