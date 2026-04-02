@@ -947,5 +947,10 @@ export function updateUserRole(userId, role) {
   return db.prepare(`UPDATE users SET role = ? WHERE id = ?`).run(role, userId);
 }
 
+// Backup - gibt den DB-Pfad zurück für Download
+export function getDbPath() {
+  return dbPath;
+}
+
 export default db;
 // Force rebuild Wed Jan 21 09:54:58 CET 2026
