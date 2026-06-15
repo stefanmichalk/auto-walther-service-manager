@@ -240,21 +240,27 @@ function App() {
       if (json.success) {
         setUploadedFiles(prev => [...prev, file.name])
         
-        // 2. Nach jedem Upload die GESAMTE konsolidierte Vorschau holen
+        // 2. Aktuelle geparste Daten vom Server holen
+        const dataRes = await fetch(`${API_URL}/data`, {
+          headers: { 'Authorization': `Bearer ${token}` }
+        })
+        const currentData = await dataRes.json()
+        
+        // 3. Konsolidierte Vorschau mit den vollständigen Daten holen
         const previewRes = await fetch(`${API_URL}/db/import-preview`, {
           method: 'POST',
           headers: { 
             'Authorization': `Bearer ${token}`,
             'Content-Type': 'application/json'
           },
-          body: JSON.stringify(json.data)
+          body: JSON.stringify(currentData)
         })
         const previewJson = await previewRes.json()
         
         if (previewJson.success && (previewJson.preview.neu.length > 0 || previewJson.preview.aktualisiert.length > 0)) {
           // 3. Wizard öffnen wenn es Daten gibt
           setImportPreview(previewJson.preview)
-          setParsedDataForImport(json.data)
+          setParsedDataForImport(currentData)
         }
         
         setLoading(false)
