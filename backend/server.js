@@ -662,7 +662,7 @@ app.post('/api/db/import-current', (req, res) => {
   }
 });
 
-const PORT = 3222;
+const PORT = process.env.PORT || 3222;
 app.listen(PORT, () => {
   console.log(`Server läuft auf http://localhost:${PORT}`);
 });
