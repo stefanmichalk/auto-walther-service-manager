@@ -373,6 +373,12 @@ const migrations = {
     `);
     console.log('Migration 10: Anreden aus Kundennamen entfernt');
   },
+
+  // Migration 11: Briefanrede-Spalte zur kunden-Tabelle hinzufügen
+  11: () => {
+    db.exec(`ALTER TABLE kunden ADD COLUMN briefanrede TEXT;`);
+    console.log('Migration 11: Briefanrede-Spalte zu kunden hinzugefügt');
+  },
 };
 
 // Migrationen ausführen
@@ -431,8 +437,8 @@ const stmts = {
 
   // Kunden
   insertKunde: db.prepare(`
-    INSERT INTO kunden (kdnr, anrede, name, strasse, plz, ort, telefon, handy, email)
-    VALUES (@kdnr, @anrede, @name, @strasse, @plz, @ort, @telefon, @handy, @email)
+    INSERT INTO kunden (kdnr, anrede, briefanrede, name, strasse, plz, ort, telefon, handy, email)
+    VALUES (@kdnr, @anrede, @briefanrede, @name, @strasse, @plz, @ort, @telefon, @handy, @email)
   `),
   
   upsertKunde: db.prepare(`
@@ -454,7 +460,8 @@ const stmts = {
   updateKunde: db.prepare(`
     UPDATE kunden SET 
       name = @name, strasse = @strasse, plz = @plz, ort = @ort, 
-      telefon = @telefon, handy = @handy, email = @email
+      telefon = @telefon, handy = @handy, email = @email,
+      briefanrede = COALESCE(@briefanrede, briefanrede)
     WHERE id = @id
   `),
   
@@ -646,6 +653,7 @@ export function importParsedData(parsedData) {
         stmts.insertKunde.run({
           kdnr: record.KdNr || null,
           anrede: record.Anrede || null,
+          briefanrede: record.Briefanrede || null,
           name: kundeName,
           strasse: record.Strasse || record.Adresse || null,
           plz: record.PLZ || null,
@@ -660,6 +668,7 @@ export function importParsedData(parsedData) {
         stmts.updateKunde.run({
           id: kunde.id,
           name: kundeName,
+          briefanrede: record.Briefanrede || null,
           strasse: record.Strasse || record.Adresse || kunde.strasse,
           plz: record.PLZ || kunde.plz,
           ort: record.Ort || kunde.ort,
@@ -782,6 +791,7 @@ export function importParsedData(parsedData) {
           stmts.insertKunde.run({
             kdnr: null,
             anrede: null,
+            briefanrede: null,
             name: kundeName,
             strasse: record.Adresse || null,
             plz: record.PLZ || null,
@@ -796,6 +806,7 @@ export function importParsedData(parsedData) {
           stmts.updateKunde.run({
             id: kunde.id,
             name: kundeName,
+            briefanrede: null,
             strasse: record.Adresse || kunde.strasse,
             plz: record.PLZ || kunde.plz,
             ort: record.Ort || kunde.ort,

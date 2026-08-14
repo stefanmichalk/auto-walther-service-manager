@@ -673,6 +673,19 @@ app.post('/api/load-existing', async (req, res) => {
   }
 });
 
+// API: Version
+app.get('/api/version', (req, res) => {
+  const pkg = JSON.parse(fs.readFileSync(path.join(__dirname, 'package.json'), 'utf-8'));
+  let buildDate = null;
+  try {
+    buildDate = fs.readFileSync(path.join(__dirname, 'BUILD_DATE'), 'utf-8').trim();
+  } catch (e) { /* dev mode - no build date */ }
+  res.json({
+    version: pkg.version,
+    buildDate
+  });
+});
+
 // Auth Routes (öffentlich)
 app.use('/api/auth', authRoutes);
 

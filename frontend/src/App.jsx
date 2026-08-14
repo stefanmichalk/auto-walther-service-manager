@@ -44,6 +44,15 @@ function App() {
   const [showSettings, setShowSettings] = useState(false)
   const [inviteToken, setInviteToken] = useState(null)
   const [showBuchung, setShowBuchung] = useState(false)
+  const [appVersion, setAppVersion] = useState(null)
+
+  // Version laden
+  useEffect(() => {
+    fetch(`${API_URL}/version`)
+      .then(r => r.json())
+      .then(setAppVersion)
+      .catch(() => {})
+  }, [])
 
   // Check for invite/buchung in URL
   useEffect(() => {
@@ -491,6 +500,15 @@ function App() {
             </button>
           </div>
         </div>
+
+        {/* Version */}
+        {appVersion && (
+          <div className="px-4 py-2 border-t border-gray-100">
+            <p className="text-[10px] text-gray-400 text-center">
+              v{appVersion.version}{appVersion.buildDate ? ` · ${appVersion.buildDate}` : ''}
+            </p>
+          </div>
+        )}
       </aside>
 
       {/* Main Content */}

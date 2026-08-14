@@ -18,6 +18,9 @@ RUN mkdir -p uploads db
 # Port exponieren
 EXPOSE 3222
 
+# Build-Datum speichern
+RUN date -u +"%d.%m.%Y %H:%M" > /app/BUILD_DATE
+
 # Environment
 ENV NODE_ENV=production
 

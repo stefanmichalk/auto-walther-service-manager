@@ -44,6 +44,7 @@ export function parseHuXlsx(rows) {
     return {
       KdNr: get('KDNR'),
       Anrede: get('ANREDE'),
+      Briefanrede: get('BRIEFANREDE'),
       Name: get('NAME1'),
       Nachname: get('NACHNAME'),
       Strasse: get('STRASSE'),
@@ -72,6 +73,7 @@ export function parseInspektionXlsx(rows) {
     return {
       KdNr: get('KDNR'),
       Anrede: get('ANREDE'),
+      Briefanrede: get('BRIEFANREDE'),
       Name: get('NAME1'),
       Vorname: get('VORNAME'),
       Nachname: get('NACHNAME'),
