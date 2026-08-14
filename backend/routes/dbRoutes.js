@@ -1,7 +1,13 @@
 import express from 'express';
+import path from 'path';
+import fs from 'fs';
+import { fileURLToPath } from 'url';
 import { getDb, getFaelligkeitenUebersicht, getAllFahrzeugStatus, upsertFahrzeugStatus, insertAuditLog, getAuditLogByVin, getAllFahrzeuge, getAllTermine, importParsedData } from '../db/database.js';
 import { adminOnly } from '../middleware/auth.js';
 import { displayKennzeichen } from '../utils/kennzeichenFormatter.js';
+
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
 
 const router = express.Router();
 
@@ -826,6 +832,39 @@ router.get('/auslastung/:datum', (req, res) => {
     res.json({ termine, services });
   } catch (err) {
     res.status(500).json({ error: err.message });
+  }
+});
+
+// Datenbank-Backup herunterladen (nur Admin)
+router.get('/backup', adminOnly, async (req, res) => {
+  try {
+    const db = getDb();
+    const backupDir = path.join(__dirname, '..', 'db', 'backups');
+    if (!fs.existsSync(backupDir)) {
+      fs.mkdirSync(backupDir, { recursive: true });
+    }
+    
+    const timestamp = new Date().toISOString().replace(/[:.]/g, '-').slice(0, 19);
+    const backupFile = path.join(backupDir, `inspector-backup-${timestamp}.db`);
+    
+    // better-sqlite3 backup() - safe even during writes
+    await db.backup(backupFile);
+    
+    // Datei als Download senden
+    res.download(backupFile, `inspector-backup-${timestamp}.db`, (err) => {
+      // Backup-Datei nach Download aufräumen (behalte die letzten 5)
+      try {
+        const files = fs.readdirSync(backupDir)
+          .filter(f => f.endsWith('.db'))
+          .sort()
+          .reverse();
+        for (const f of files.slice(5)) {
+          fs.unlinkSync(path.join(backupDir, f));
+        }
+      } catch (e) { /* cleanup optional */ }
+    });
+  } catch (err) {
+    res.status(500).json({ error: 'Backup fehlgeschlagen: ' + err.message });
   }
 });
 
