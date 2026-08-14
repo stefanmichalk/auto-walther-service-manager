@@ -571,6 +571,8 @@ const stmts = {
       f.hersteller,
       f.modell,
       k.name as kunde_name,
+      k.anrede as kunde_anrede,
+      k.briefanrede as kunde_briefanrede,
       k.strasse as kunde_strasse,
       k.plz as kunde_plz,
       k.ort as kunde_ort,

@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import { 
   CheckCircleIcon, 
   ExclamationTriangleIcon, 
@@ -18,11 +18,13 @@ import {
   ChartBarIcon,
   UserIcon,
   TruckIcon,
-  ClipboardDocumentListIcon
+  ClipboardDocumentListIcon,
+  ChevronDownIcon
 } from '@heroicons/react/24/outline'
 import { CheckCircleIcon as CheckCircleSolid } from '@heroicons/react/24/solid'
 import { TerminForm } from './TerminForm'
 import { ImportMergeDialog } from './ImportMergeDialog'
+import * as XLSX from 'xlsx'
 
 export function FaelligkeitenList({ data, onRefresh, currentUser, token }) {
   const authHeaders = { 'Authorization': `Bearer ${token}`, 'Content-Type': 'application/json' }
@@ -47,6 +49,19 @@ export function FaelligkeitenList({ data, onRefresh, currentUser, token }) {
   const [buchungsLink, setBuchungsLink] = useState(null)
   const [editKunde, setEditKunde] = useState({ name: '', telefon: '', email: '', strasse: '', plz: '', ort: '', notizen: '' })
   const [editFahrzeug, setEditFahrzeug] = useState({ kennzeichen: '', hersteller: '', modell: '' })
+  const [showExportMenu, setShowExportMenu] = useState(false)
+  const exportMenuRef = useRef(null)
+
+  // Export-Menü schließen bei Klick außerhalb
+  useEffect(() => {
+    const handleClick = (e) => {
+      if (exportMenuRef.current && !exportMenuRef.current.contains(e.target)) {
+        setShowExportMenu(false)
+      }
+    }
+    document.addEventListener('mousedown', handleClick)
+    return () => document.removeEventListener('mousedown', handleClick)
+  }, [])
 
   // Lade gespeicherte Status beim Mount
   useEffect(() => {
@@ -165,17 +180,15 @@ export function FaelligkeitenList({ data, onRefresh, currentUser, token }) {
     })
   }
 
-  const handleExport = () => {
+  const getExportData = () => {
     const filtered = getFilteredData()
-    
-    // CSV Header
-    const headers = ['Marke', 'Kennzeichen', 'VIN', 'Kunde', 'Straße', 'PLZ', 'Ort', 'Telefon', 'E-Mail', 'Service', 'Inspektion', 'HU', 'Nächste Fälligkeit', 'Status']
-    
-    // CSV Rows
+    const headers = ['Anrede', 'Briefanrede', 'Marke', 'Kennzeichen', 'VIN', 'Kunde', 'Straße', 'PLZ', 'Ort', 'Telefon', 'E-Mail', 'Service', 'Inspektion', 'HU', 'Nächste Fälligkeit', 'Status']
     const rows = filtered.map(f => {
       const status = statusMap[f.vin] || {}
       const statusText = status.service_termin ? `Termin: ${status.service_termin}` : status.angeschrieben ? 'Angeschrieben' : 'Offen'
       return [
+        f.kundeAnrede || '',
+        f.kundeBriefanrede || '',
         (f.hersteller || '').toUpperCase(),
         f.kennzeichen || '',
         f.vin || '',
@@ -192,18 +205,29 @@ export function FaelligkeitenList({ data, onRefresh, currentUser, token }) {
         statusText
       ]
     })
-    
-    // CSV erstellen
-    const csvContent = [headers, ...rows]
-      .map(row => row.map(cell => `"${String(cell).replace(/"/g, '""')}"`).join(';'))
-      .join('\n')
-    
-    // Download
-    const blob = new Blob(['\ufeff' + csvContent], { type: 'text/csv;charset=utf-8;' })
-    const link = document.createElement('a')
-    link.href = URL.createObjectURL(blob)
-    link.download = `faelligkeiten_export_${new Date().toISOString().split('T')[0]}.csv`
-    link.click()
+    return { headers, rows }
+  }
+
+  const handleExport = (format) => {
+    setShowExportMenu(false)
+    const { headers, rows } = getExportData()
+    const dateStr = new Date().toISOString().split('T')[0]
+
+    if (format === 'xlsx') {
+      const ws = XLSX.utils.aoa_to_sheet([headers, ...rows])
+      const wb = XLSX.utils.book_new()
+      XLSX.utils.book_append_sheet(wb, ws, 'Fälligkeiten')
+      XLSX.writeFile(wb, `faelligkeiten_export_${dateStr}.xlsx`)
+    } else {
+      const csvContent = [headers, ...rows]
+        .map(row => row.map(cell => `"${String(cell).replace(/"/g, '""')}"`).join(';'))
+        .join('\n')
+      const blob = new Blob(['\ufeff' + csvContent], { type: 'text/csv;charset=utf-8;' })
+      const link = document.createElement('a')
+      link.href = URL.createObjectURL(blob)
+      link.download = `faelligkeiten_export_${dateStr}.csv`
+      link.click()
+    }
   }
 
   const handleAustragen = async () => {
@@ -556,13 +580,34 @@ export function FaelligkeitenList({ data, onRefresh, currentUser, token }) {
               <PlusIcon className="w-4 h-4" />
               Termin
             </button>
-            <button
-              onClick={handleExport}
-              className="inline-flex items-center gap-2 px-4 py-2 text-sm font-medium text-white bg-emerald-600 hover:bg-emerald-700 rounded-xl shadow-sm transition-colors"
-            >
-              <ArrowDownTrayIcon className="w-4 h-4" />
-              Export
-            </button>
+            <div className="relative" ref={exportMenuRef}>
+              <button
+                onClick={() => setShowExportMenu(!showExportMenu)}
+                className="inline-flex items-center gap-2 px-4 py-2 text-sm font-medium text-white bg-emerald-600 hover:bg-emerald-700 rounded-xl shadow-sm transition-colors"
+              >
+                <ArrowDownTrayIcon className="w-4 h-4" />
+                Export
+                <ChevronDownIcon className="w-3 h-3" />
+              </button>
+              {showExportMenu && (
+                <div className="absolute right-0 mt-1 w-44 bg-white rounded-xl shadow-lg border border-gray-200 py-1 z-50">
+                  <button
+                    onClick={() => handleExport('xlsx')}
+                    className="w-full px-4 py-2 text-sm text-left text-gray-700 hover:bg-gray-50 flex items-center gap-2"
+                  >
+                    <span className="w-6 text-center text-xs font-bold text-emerald-600">.xlsx</span>
+                    Excel-Datei
+                  </button>
+                  <button
+                    onClick={() => handleExport('csv')}
+                    className="w-full px-4 py-2 text-sm text-left text-gray-700 hover:bg-gray-50 flex items-center gap-2"
+                  >
+                    <span className="w-6 text-center text-xs font-bold text-blue-600">.csv</span>
+                    CSV-Datei
+                  </button>
+                </div>
+              )}
+            </div>
           </div>
         </div>
 

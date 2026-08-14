@@ -194,6 +194,8 @@ function App() {
           hersteller: item.hersteller,
           modell: item.modell,
           kunde: item.kunde_name,
+          kundeAnrede: item.kunde_anrede,
+          kundeBriefanrede: item.kunde_briefanrede,
           kundeStrasse: item.kunde_strasse,
           kundePlz: item.kunde_plz,
           kundeOrt: item.kunde_ort,
