@@ -182,13 +182,11 @@ export function FaelligkeitenList({ data, onRefresh, currentUser, token }) {
 
   const getExportData = () => {
     const filtered = getFilteredData()
-    const headers = ['Anrede', 'Briefanrede', 'Marke', 'Kennzeichen', 'VIN', 'Kunde', 'Straße', 'PLZ', 'Ort', 'Telefon', 'E-Mail', 'Service', 'Inspektion', 'HU', 'Nächste Fälligkeit', 'Status']
+    const headers = ['Marke', 'Kennzeichen', 'VIN', 'Kunde', 'Straße', 'PLZ', 'Ort', 'Telefon', 'E-Mail', 'Service', 'Inspektion', 'HU', 'Nächste Fälligkeit', 'Status']
     const rows = filtered.map(f => {
       const status = statusMap[f.vin] || {}
       const statusText = status.service_termin ? `Termin: ${status.service_termin}` : status.angeschrieben ? 'Angeschrieben' : 'Offen'
       return [
-        f.kundeAnrede || '',
-        f.kundeBriefanrede || '',
         (f.hersteller || '').toUpperCase(),
         f.kennzeichen || '',
         f.vin || '',
