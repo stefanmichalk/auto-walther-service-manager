@@ -18,8 +18,8 @@ RUN mkdir -p uploads db
 # Port exponieren
 EXPOSE 3222
 
-# Build-Datum speichern
-RUN date -u +"%d.%m.%Y %H:%M" > /app/BUILD_DATE
+# Build-Datum speichern (Europe/Berlin)
+RUN apk add --no-cache tzdata && TZ=Europe/Berlin date +"%d.%m.%Y %H:%M" > /app/BUILD_DATE && apk del tzdata
 
 # Environment
 ENV NODE_ENV=production

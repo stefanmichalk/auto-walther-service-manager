@@ -1,5 +1,5 @@
-import { useState, useEffect } from 'react'
-import { TrashIcon, UserPlusIcon, ClipboardDocumentIcon, XMarkIcon } from '@heroicons/react/24/outline'
+import { useState, useEffect, useRef } from 'react'
+import { TrashIcon, UserPlusIcon, ClipboardDocumentIcon, XMarkIcon, ArrowDownTrayIcon, ArrowUpTrayIcon } from '@heroicons/react/24/outline'
 import { useToast } from './Toast'
 
 const WOCHENTAGE = ['Sonntag', 'Montag', 'Dienstag', 'Mittwoch', 'Donnerstag', 'Freitag', 'Samstag']
@@ -14,6 +14,9 @@ export function AdminPanel({ token, onResetComplete }) {
   const [inviteData, setInviteData] = useState({ username: '', name: '', role: 'user' })
   const [inviteLink, setInviteLink] = useState(null)
   const [kapazitaeten, setKapazitaeten] = useState([])
+  const [backupHistory, setBackupHistory] = useState([])
+  const [backupLoading, setBackupLoading] = useState(false)
+  const restoreInputRef = useRef(null)
 
   useEffect(() => {
     loadData()
@@ -22,11 +25,12 @@ export function AdminPanel({ token, onResetComplete }) {
   const loadData = async () => {
     try {
       const headers = { 'Authorization': `Bearer ${token}` }
-      const [statsRes, usersRes, invitesRes, kapRes] = await Promise.all([
+      const [statsRes, usersRes, invitesRes, kapRes, historyRes] = await Promise.all([
         fetch('/api/db/stats', { headers }),
         fetch('/api/auth/users', { headers }),
         fetch('/api/auth/invites', { headers }),
-        fetch('/api/db/kapazitaeten', { headers })
+        fetch('/api/db/kapazitaeten', { headers }),
+        fetch('/api/db/backup/history', { headers })
       ])
       if (statsRes.ok) setStats(await statsRes.json())
       if (usersRes.ok) setUsers(await usersRes.json())
@@ -35,10 +39,68 @@ export function AdminPanel({ token, onResetComplete }) {
         const kapData = await kapRes.json()
         setKapazitaeten(kapData.kapazitaeten || [])
       }
+      if (historyRes.ok) setBackupHistory(await historyRes.json())
     } catch (err) {
       console.error('Load error:', err)
     }
     setLoading(false)
+  }
+
+  const handleBackup = async () => {
+    setBackupLoading(true)
+    try {
+      const res = await fetch('/api/db/backup', {
+        headers: { 'Authorization': `Bearer ${token}` }
+      })
+      if (res.ok) {
+        const blob = await res.blob()
+        const url = URL.createObjectURL(blob)
+        const a = document.createElement('a')
+        a.href = url
+        a.download = res.headers.get('content-disposition')?.match(/filename="?(.+?)"?$/)?.[1] || 'backup.db'
+        a.click()
+        URL.revokeObjectURL(url)
+        addToast('Backup erfolgreich heruntergeladen', 'success')
+        loadData()
+      } else {
+        addToast('Backup fehlgeschlagen', 'error')
+      }
+    } catch (err) {
+      addToast('Backup fehlgeschlagen: ' + err.message, 'error')
+    }
+    setBackupLoading(false)
+  }
+
+  const handleRestore = async (e) => {
+    const file = e.target.files?.[0]
+    if (!file) return
+    
+    if (!confirm(`Datenbank wirklich aus "${file.name}" wiederherstellen?\n\nEin automatisches Backup der aktuellen DB wird vorher erstellt.`)) {
+      e.target.value = ''
+      return
+    }
+    
+    setBackupLoading(true)
+    try {
+      const formData = new FormData()
+      formData.append('backup', file)
+      const res = await fetch('/api/db/restore', {
+        method: 'POST',
+        headers: { 'Authorization': `Bearer ${token}` },
+        body: formData
+      })
+      const data = await res.json()
+      if (res.ok) {
+        addToast('Datenbank wiederhergestellt! Seite wird neu geladen...', 'success')
+        setTimeout(() => window.location.reload(), 3000)
+      } else {
+        addToast(data.error || 'Restore fehlgeschlagen', 'error')
+      }
+    } catch (err) {
+      addToast('Restore fehlgeschlagen: ' + err.message, 'error')
+    }
+    setBackupLoading(false)
+    e.target.value = ''
   }
 
   const handleKapazitaetChange = async (wochentag, field, value) => {
@@ -180,6 +242,65 @@ export function AdminPanel({ token, onResetComplete }) {
           </button>
           <p className="text-xs text-slate-400 mt-2">Löscht alle Daten außer Benutzer</p>
         </div>
+      </section>
+
+      {/* Backup & Restore */}
+      <section className="bg-white border border-slate-200 p-6">
+        <h2 className="text-xs font-semibold text-slate-500 uppercase tracking-wider mb-4">Backup & Restore</h2>
+        
+        <div className="flex gap-3 mb-4">
+          <button
+            onClick={handleBackup}
+            disabled={backupLoading}
+            className="inline-flex items-center gap-2 px-4 py-2 bg-emerald-600 text-white text-[13px] font-medium hover:bg-emerald-700 rounded-lg transition-colors disabled:opacity-50"
+          >
+            <ArrowDownTrayIcon className="w-4 h-4" />
+            {backupLoading ? 'Läuft...' : 'Backup erstellen'}
+          </button>
+          <button
+            onClick={() => restoreInputRef.current?.click()}
+            disabled={backupLoading}
+            className="inline-flex items-center gap-2 px-4 py-2 bg-amber-600 text-white text-[13px] font-medium hover:bg-amber-700 rounded-lg transition-colors disabled:opacity-50"
+          >
+            <ArrowUpTrayIcon className="w-4 h-4" />
+            Backup einspielen
+          </button>
+          <input
+            ref={restoreInputRef}
+            type="file"
+            accept=".db,.sqlite"
+            onChange={handleRestore}
+            className="hidden"
+          />
+        </div>
+        
+        {backupHistory.length > 0 && (
+          <div>
+            <h3 className="text-xs font-medium text-slate-500 mb-2">Letzte Aktionen</h3>
+            <div className="space-y-1 max-h-40 overflow-y-auto">
+              {backupHistory.slice(0, 10).map((entry, i) => (
+                <div key={i} className="flex items-center justify-between px-3 py-2 bg-slate-50 rounded text-xs">
+                  <div className="flex items-center gap-2">
+                    <span className={`w-2 h-2 rounded-full ${
+                      entry.type === 'restore' ? 'bg-amber-500' : 
+                      entry.type === 'pre-restore-auto' ? 'bg-blue-500' : 'bg-emerald-500'
+                    }`} />
+                    <span className="text-slate-700">
+                      {entry.type === 'manual' && 'Backup erstellt'}
+                      {entry.type === 'restore' && 'Restore durchgeführt'}
+                      {entry.type === 'pre-restore-auto' && 'Auto-Backup vor Restore'}
+                    </span>
+                  </div>
+                  <div className="flex items-center gap-3 text-slate-400">
+                    <span>{entry.user}</span>
+                    <span>{new Date(entry.timestamp).toLocaleString('de-DE')}</span>
+                    <span>{(entry.size / 1024).toFixed(0)} KB</span>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
       </section>
 
       {/* Kapazitäts-Einstellungen */}
