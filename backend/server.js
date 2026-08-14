@@ -278,11 +278,19 @@ app.get('/api/termine', (req, res) => {
     }
   }
   
-  // Service-Termine (aus XLSX)
+  // Service-Termine (aus XLSX/CSV)
   for (const record of parsedData.service) {
     if (record.Faelligkeitsdatum) {
-      const parts = record.Faelligkeitsdatum.split('/');
-      const date = new Date(parts[0], parts[1] - 1, parts[2]);
+      let date;
+      if (record.Faelligkeitsdatum.includes('/')) {
+        const [y, m, d] = record.Faelligkeitsdatum.split('/');
+        date = new Date(y, m - 1, d);
+      } else if (record.Faelligkeitsdatum.includes('.')) {
+        const [d, m, y] = record.Faelligkeitsdatum.split('.');
+        date = new Date(y, m - 1, d);
+      } else {
+        continue;
+      }
       termine.push({
         type: 'Service',
         datum: record.Faelligkeitsdatum,

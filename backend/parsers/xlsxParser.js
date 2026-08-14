@@ -32,12 +32,23 @@ export function parseXlsx(buffer, ext = 'xlsx') {
       return '';
     };
     
+    // Datum von YYYY/MM/DD nach DD.MM.YYYY normalisieren
+    const formatDate = (val) => {
+      if (!val) return '';
+      const s = String(val);
+      if (s.match(/^\d{4}\/\d{2}\/\d{2}$/)) {
+        const [y, m, d] = s.split('/');
+        return `${d}.${m}.${y}`;
+      }
+      return s;
+    };
+    
     return {
       Fahrgestellnr: getValue('FIN', 'Fahrgestellnr', 'Fahrgestellnummer', 'VIN'),
       Kennzeichen: formatKennzeichen(getValue('Kennzeichen', 'Kfz-Kennzeichen', 'KFZ') || ''),
       Organisation: getValue('Wartungs-Organisation', 'Organisation'),
       Haendler: getValue('Wartungs-Händler', 'Händler', 'Haendler'),
-      Faelligkeitsdatum: getValue('Angepasstes Fälligkeitsdatum', 'Normales Fälligkeitsdatum', 'Fälligkeitsdatum', 'Fälligkeit', 'Datum'),
+      Faelligkeitsdatum: formatDate(getValue('Angepasstes Fälligkeitsdatum', 'Normales Fälligkeitsdatum', 'Fälligkeitsdatum', 'Fälligkeit', 'Datum')),
       Bezeichnung: getValue('Bezeichnung', 'Service', 'Typ'),
       Details: getValue('Details', 'Bemerkung', 'Notizen'),
       Status: getValue('Service Plan Status', 'Status'),
