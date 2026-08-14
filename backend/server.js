@@ -7,7 +7,7 @@ import { fileURLToPath } from 'url';
 import pdfParse from 'pdf-parse';
 import { parseHU } from './parsers/huParser.js';
 import { parseInspektion } from './parsers/inspektionParser.js';
-import { parseXlsx } from './parsers/xlsxParser.js';
+import { parseXlsx, detectXlsxType, parseHuXlsx, parseInspektionXlsx } from './parsers/xlsxParser.js';
 import XLSX from 'xlsx';
 import { detectFileType } from './parsers/autoDetect.js';
 import dbRoutes from './routes/dbRoutes.js';
@@ -158,10 +158,23 @@ app.post('/api/upload', upload.single('file'), async (req, res) => {
     let records;
     
     if (ext === 'xlsx' || ext === 'xls' || ext === 'csv') {
-      // XLSX/CSV verarbeiten
-      detectedType = 'service';
-      records = parseXlsx(dataBuffer, ext);
-      parsedData.service = records;
+      // XLSX/CSV: Typ anhand der Spalten erkennen
+      const { type: xlsxType, rows } = detectXlsxType(dataBuffer, ext);
+      detectedType = xlsxType;
+      
+      if (xlsxType === 'hu') {
+        records = parseHuXlsx(rows);
+        parsedData.hu = records;
+      } else if (xlsxType === 'inspektion') {
+        records = parseInspektionXlsx(rows);
+        parsedData.inspektion = records;
+      } else if (xlsxType === 'service') {
+        records = parseXlsx(dataBuffer, ext);
+        parsedData.service = records;
+      } else {
+        fs.unlinkSync(filePath);
+        return res.status(400).json({ error: 'XLSX-Typ konnte nicht erkannt werden (keine bekannten Spalten gefunden)' });
+      }
     } else if (ext === 'pdf') {
       // PDF verarbeiten
       const data = await pdfParse(dataBuffer);
@@ -628,13 +641,21 @@ app.post('/api/load-existing', async (req, res) => {
       }
     }
     
-    // XLSX/CSV laden
+    // XLSX/CSV laden (Auto-Erkennung: HU, Inspektion oder Service)
     const xlsxFiles = files.filter(f => f.endsWith('.xlsx') || f.endsWith('.xls') || f.endsWith('.csv'));
     for (const file of xlsxFiles) {
       const filePath = path.join(pdfsDir, file);
       const dataBuffer = fs.readFileSync(filePath);
       const fileExt = file.toLowerCase().split('.').pop();
-      parsedData.service = parseXlsx(dataBuffer, fileExt);
+      const { type: xlsxType, rows } = detectXlsxType(dataBuffer, fileExt);
+      
+      if (xlsxType === 'hu') {
+        parsedData.hu = parseHuXlsx(rows);
+      } else if (xlsxType === 'inspektion') {
+        parsedData.inspektion = parseInspektionXlsx(rows);
+      } else {
+        parsedData.service = parseXlsx(dataBuffer, fileExt);
+      }
     }
     
     parsedData.merged = mergeByVIN(parsedData.hu, parsedData.inspektion, parsedData.service);
