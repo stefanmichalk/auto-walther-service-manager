@@ -90,6 +90,9 @@ export function getAllKuerzel() {
 export function displayKennzeichen(raw) {
   if (!raw) return raw;
   
+  // Wenn bereits formatiert (enthält Bindestrich oder Leerzeichen) → nicht umformatieren
+  if (raw.includes('-') || raw.includes(' ')) return raw.toUpperCase();
+  
   // Bereinigen
   const clean = raw.toUpperCase().replace(/[^A-Z0-9]/g, '');
   if (!clean || clean.length < 3 || clean.length > 9) return raw;

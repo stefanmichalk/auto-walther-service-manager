@@ -206,8 +206,9 @@ router.put('/fahrzeuge/:id', (req, res) => {
       return res.status(404).json({ error: 'Fahrzeug nicht gefunden' });
     }
     
-    // Kennzeichen bereinigen (nur Großbuchstaben und Zahlen speichern)
-    const cleanKennzeichen = kennzeichen ? kennzeichen.toUpperCase().replace(/[^A-Z0-9]/g, '') : fahrzeug.kennzeichen;
+    // Kennzeichen: Formatierung vom User beibehalten (z.B. HC-HI 112 statt HCHI112)
+    // Nur Uppercase + erlaubte Zeichen (Buchstaben, Zahlen, Bindestrich, Leerzeichen)
+    const cleanKennzeichen = kennzeichen ? kennzeichen.toUpperCase().replace(/[^A-Z0-9\- ]/g, '').trim() : fahrzeug.kennzeichen;
     
     db.prepare(`
       UPDATE fahrzeuge SET 

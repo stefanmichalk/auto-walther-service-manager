@@ -2,8 +2,14 @@
 import XLSX from 'xlsx';
 import { formatKennzeichen } from '../utils/kennzeichenFormatter.js';
 
-export function parseXlsx(buffer) {
-  const workbook = XLSX.read(buffer, { type: 'buffer' });
+export function parseXlsx(buffer, ext = 'xlsx') {
+  let workbook;
+  if (ext === 'csv') {
+    const csvString = buffer.toString('utf-8');
+    workbook = XLSX.read(csvString, { type: 'string', raw: true });
+  } else {
+    workbook = XLSX.read(buffer, { type: 'buffer' });
+  }
   const sheet = workbook.Sheets[workbook.SheetNames[0]];
   const rows = XLSX.utils.sheet_to_json(sheet);
   

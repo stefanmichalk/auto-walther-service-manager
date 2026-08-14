@@ -77,7 +77,7 @@ export function DropZone({ onUpload, loading }) {
     >
       <input
         type="file"
-        accept=".pdf,.xlsx,.xls"
+        accept=".pdf,.xlsx,.xls,.csv"
         multiple
         onChange={handleFileSelect}
         className="absolute inset-0 w-full h-full opacity-0 cursor-pointer"

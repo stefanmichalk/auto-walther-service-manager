@@ -157,10 +157,10 @@ app.post('/api/upload', upload.single('file'), async (req, res) => {
     let detectedType;
     let records;
     
-    if (ext === 'xlsx' || ext === 'xls') {
-      // XLSX verarbeiten
+    if (ext === 'xlsx' || ext === 'xls' || ext === 'csv') {
+      // XLSX/CSV verarbeiten
       detectedType = 'service';
-      records = parseXlsx(dataBuffer);
+      records = parseXlsx(dataBuffer, ext);
       parsedData.service = records;
     } else if (ext === 'pdf') {
       // PDF verarbeiten
@@ -183,7 +183,7 @@ app.post('/api/upload', upload.single('file'), async (req, res) => {
       }
     } else {
       fs.unlinkSync(filePath);
-      return res.status(400).json({ error: 'Nur PDF und XLSX Dateien werden unterstützt' });
+      return res.status(400).json({ error: 'Nur PDF, XLSX und CSV Dateien werden unterstützt' });
     }
     
     // Merge aktualisieren
@@ -620,12 +620,13 @@ app.post('/api/load-existing', async (req, res) => {
       }
     }
     
-    // XLSX laden
-    const xlsxFiles = files.filter(f => f.endsWith('.xlsx') || f.endsWith('.xls'));
+    // XLSX/CSV laden
+    const xlsxFiles = files.filter(f => f.endsWith('.xlsx') || f.endsWith('.xls') || f.endsWith('.csv'));
     for (const file of xlsxFiles) {
       const filePath = path.join(pdfsDir, file);
       const dataBuffer = fs.readFileSync(filePath);
-      parsedData.service = parseXlsx(dataBuffer);
+      const fileExt = file.toLowerCase().split('.').pop();
+      parsedData.service = parseXlsx(dataBuffer, fileExt);
     }
     
     parsedData.merged = mergeByVIN(parsedData.hu, parsedData.inspektion, parsedData.service);

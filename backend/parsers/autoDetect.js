@@ -3,8 +3,8 @@
 export function detectFileType(filename, content) {
   const ext = filename.toLowerCase().split('.').pop();
   
-  // XLSX erkennen
-  if (ext === 'xlsx' || ext === 'xls') {
+  // XLSX/CSV erkennen
+  if (ext === 'xlsx' || ext === 'xls' || ext === 'csv') {
     return 'service';
   }
   
