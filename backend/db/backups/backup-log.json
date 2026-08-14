@@ -1,0 +1,23 @@
+[
+  {
+    "timestamp": "2026-08-14T09:53:10.278Z",
+    "filename": "test-backup.db",
+    "size": 204800,
+    "user": "stefan",
+    "type": "restore"
+  },
+  {
+    "timestamp": "2026-08-14T09:53:10.276Z",
+    "filename": "pre-restore-2026-08-14T09-53-10.db",
+    "size": 204800,
+    "user": "stefan",
+    "type": "pre-restore-auto"
+  },
+  {
+    "timestamp": "2026-08-14T09:53:10.121Z",
+    "filename": "inspector-backup-2026-08-14T09-53-10.db",
+    "size": 204800,
+    "user": "stefan",
+    "type": "manual"
+  }
+]

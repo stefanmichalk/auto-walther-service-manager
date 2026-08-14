@@ -1,6 +1,7 @@
 import express from 'express';
 import path from 'path';
 import fs from 'fs';
+import multer from 'multer';
 import { fileURLToPath } from 'url';
 import { getDb, getFaelligkeitenUebersicht, getAllFahrzeugStatus, upsertFahrzeugStatus, insertAuditLog, getAuditLogByVin, getAllFahrzeuge, getAllTermine, importParsedData } from '../db/database.js';
 import { adminOnly } from '../middleware/auth.js';
@@ -835,36 +836,161 @@ router.get('/auslastung/:datum', (req, res) => {
   }
 });
 
-// Datenbank-Backup herunterladen (nur Admin)
+// ============================================
+// BACKUP & RESTORE
+// ============================================
+
+const backupDir = path.join(__dirname, '..', 'db', 'backups');
+const backupLogFile = path.join(backupDir, 'backup-log.json');
+
+function ensureBackupDir() {
+  if (!fs.existsSync(backupDir)) {
+    fs.mkdirSync(backupDir, { recursive: true });
+  }
+}
+
+function readBackupLog() {
+  ensureBackupDir();
+  if (!fs.existsSync(backupLogFile)) return [];
+  try {
+    return JSON.parse(fs.readFileSync(backupLogFile, 'utf-8'));
+  } catch { return []; }
+}
+
+function writeBackupLog(entries) {
+  ensureBackupDir();
+  fs.writeFileSync(backupLogFile, JSON.stringify(entries, null, 2));
+}
+
+function addBackupLogEntry(entry) {
+  const log = readBackupLog();
+  log.unshift(entry);
+  writeBackupLog(log.slice(0, 100)); // max 100 Einträge
+}
+
+// Backup erstellen und herunterladen (nur Admin)
 router.get('/backup', adminOnly, async (req, res) => {
   try {
     const db = getDb();
-    const backupDir = path.join(__dirname, '..', 'db', 'backups');
-    if (!fs.existsSync(backupDir)) {
-      fs.mkdirSync(backupDir, { recursive: true });
-    }
+    ensureBackupDir();
     
     const timestamp = new Date().toISOString().replace(/[:.]/g, '-').slice(0, 19);
-    const backupFile = path.join(backupDir, `inspector-backup-${timestamp}.db`);
+    const filename = `inspector-backup-${timestamp}.db`;
+    const backupFile = path.join(backupDir, filename);
     
     // better-sqlite3 backup() - safe even during writes
     await db.backup(backupFile);
     
+    const stats = fs.statSync(backupFile);
+    
+    // Log-Eintrag
+    addBackupLogEntry({
+      timestamp: new Date().toISOString(),
+      filename,
+      size: stats.size,
+      user: req.user.username,
+      type: 'manual'
+    });
+    
     // Datei als Download senden
-    res.download(backupFile, `inspector-backup-${timestamp}.db`, (err) => {
-      // Backup-Datei nach Download aufräumen (behalte die letzten 5)
+    res.download(backupFile, filename, (err) => {
+      // Alte Backups aufräumen (behalte die letzten 10)
       try {
         const files = fs.readdirSync(backupDir)
           .filter(f => f.endsWith('.db'))
           .sort()
           .reverse();
-        for (const f of files.slice(5)) {
+        for (const f of files.slice(10)) {
           fs.unlinkSync(path.join(backupDir, f));
         }
       } catch (e) { /* cleanup optional */ }
     });
   } catch (err) {
     res.status(500).json({ error: 'Backup fehlgeschlagen: ' + err.message });
+  }
+});
+
+// Backup-History anzeigen
+router.get('/backup/history', adminOnly, (req, res) => {
+  res.json(readBackupLog());
+});
+
+// Datenbank aus Backup wiederherstellen (nur Admin)
+const restoreUpload = multer({ dest: path.join(__dirname, '..', 'uploads/') });
+
+router.post('/restore', adminOnly, restoreUpload.single('backup'), async (req, res) => {
+  if (!req.file) {
+    return res.status(400).json({ error: 'Keine Backup-Datei hochgeladen' });
+  }
+  
+  const uploadedFile = req.file.path;
+  
+  try {
+    // 1. Validieren: Ist es eine echte SQLite-DB?
+    const Database = (await import('better-sqlite3')).default;
+    let testDb;
+    try {
+      testDb = new Database(uploadedFile, { readonly: true });
+      // Prüfe ob wichtige Tabellen existieren
+      const tables = testDb.prepare("SELECT name FROM sqlite_master WHERE type='table'").all().map(t => t.name);
+      const required = ['fahrzeuge', 'kunden', 'termine'];
+      const missing = required.filter(t => !tables.includes(t));
+      if (missing.length > 0) {
+        testDb.close();
+        fs.unlinkSync(uploadedFile);
+        return res.status(400).json({ error: `Ungültige Backup-Datei. Fehlende Tabellen: ${missing.join(', ')}` });
+      }
+      testDb.close();
+    } catch (e) {
+      if (testDb) testDb.close();
+      fs.unlinkSync(uploadedFile);
+      return res.status(400).json({ error: 'Datei ist keine gültige SQLite-Datenbank' });
+    }
+    
+    // 2. Sicherheits-Backup der aktuellen DB VOR dem Restore
+    const db = getDb();
+    ensureBackupDir();
+    const preRestoreFile = path.join(backupDir, `pre-restore-${new Date().toISOString().replace(/[:.]/g, '-').slice(0, 19)}.db`);
+    await db.backup(preRestoreFile);
+    
+    addBackupLogEntry({
+      timestamp: new Date().toISOString(),
+      filename: path.basename(preRestoreFile),
+      size: fs.statSync(preRestoreFile).size,
+      user: req.user.username,
+      type: 'pre-restore-auto'
+    });
+    
+    // 3. Restore: Uploaded DB über die aktuelle kopieren
+    const dbPath = path.join(__dirname, '..', 'db', 'inspector.db');
+    
+    // DB schließen ist bei better-sqlite3 nicht direkt möglich ohne Neustart,
+    // daher nutzen wir die serialize-Methode: WAL checkpoint + copy
+    db.pragma('wal_checkpoint(TRUNCATE)');
+    fs.copyFileSync(uploadedFile, dbPath);
+    fs.unlinkSync(uploadedFile);
+    
+    addBackupLogEntry({
+      timestamp: new Date().toISOString(),
+      filename: req.file.originalname,
+      size: req.file.size,
+      user: req.user.username,
+      type: 'restore'
+    });
+    
+    res.json({ 
+      success: true, 
+      message: 'Datenbank wiederhergestellt. Server-Neustart empfohlen für volle Konsistenz.',
+      preRestoreBackup: path.basename(preRestoreFile)
+    });
+    
+    // 4. Server nach kurzer Verzögerung neu starten
+    console.log('🔄 Datenbank restored - Server wird in 2s neu gestartet...');
+    setTimeout(() => process.exit(0), 2000); // Docker/CapRover startet den Container automatisch neu
+    
+  } catch (err) {
+    if (fs.existsSync(uploadedFile)) fs.unlinkSync(uploadedFile);
+    res.status(500).json({ error: 'Restore fehlgeschlagen: ' + err.message });
   }
 });
 
