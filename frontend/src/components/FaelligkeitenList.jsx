@@ -135,6 +135,18 @@ export function FaelligkeitenList({ data, onRefresh, currentUser, token }) {
     }
   }
 
+  const openTerminModal = (vin) => {
+    setModal({ type: 'termin', vin })
+    setModalData({ grund: '', datum: statusMap[vin]?.service_termin || '' })
+  }
+
+  const handleTerminSave = async () => {
+    if (!modal.vin || !modalData.datum) return
+    await handleStatusChange(modal.vin, 'service_termin', modalData.datum)
+    setModal({ type: null, vin: null })
+    setModalData({ grund: '', datum: '' })
+  }
+
   // Filterfunktion für Export wiederverwenden
   const getFilteredData = () => {
     return data.filter(f => {
@@ -845,12 +857,13 @@ export function FaelligkeitenList({ data, onRefresh, currentUser, token }) {
 
                   {/* Termin */}
                   <td className="py-2 px-1">
-                    <input
-                      type="date"
-                      value={statusMap[f.vin]?.service_termin || ''}
-                      onChange={(e) => handleStatusChange(f.vin, 'service_termin', e.target.value)}
-                      className="w-full px-1 py-1 text-xs rounded border border-gray-300 hover:border-gray-400 transition-colors cursor-pointer"
-                    />
+                    <button
+                      type="button"
+                      onClick={() => openTerminModal(f.vin)}
+                      className="w-full px-1 py-1 text-xs rounded border border-gray-300 hover:border-gray-400 transition-colors cursor-pointer text-left"
+                    >
+                      {statusMap[f.vin]?.service_termin || 'Termin setzen'}
+                    </button>
                   </td>
 
                   {/* Telefon - nur sichtbar wenn: angeschrieben + kein Termin + >7 Tage überfällig */}
@@ -1021,6 +1034,44 @@ export function FaelligkeitenList({ data, onRefresh, currentUser, token }) {
         </div>
       )}
 
+      {modal.type === 'termin' && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4" onClick={() => setModal({ type: null, vin: null })}>
+          <div className="bg-white rounded-lg shadow-xl w-full max-w-md p-6" onClick={e => e.stopPropagation()}>
+            <div className="flex items-center justify-between mb-4">
+              <h3 className="text-lg font-semibold text-gray-900">Termin setzen</h3>
+              <button onClick={() => setModal({ type: null, vin: null })} className="text-gray-400 hover:text-gray-600" aria-label="Dialog schließen">
+                <XMarkIcon className="w-5 h-5" />
+              </button>
+            </div>
+            <div className="mb-6">
+              <label className="block text-sm font-medium text-gray-700 mb-1">Datum</label>
+              <input
+                type="date"
+                value={modalData.datum}
+                onChange={(e) => setModalData(prev => ({ ...prev, datum: e.target.value }))}
+                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-gray-500 focus:border-gray-500"
+                autoFocus
+              />
+            </div>
+            <div className="flex justify-end gap-2">
+              <button
+                onClick={() => setModal({ type: null, vin: null })}
+                className="px-4 py-2 text-sm text-gray-600 hover:bg-gray-100 rounded-lg"
+              >
+                Abbrechen
+              </button>
+              <button
+                onClick={handleTerminSave}
+                disabled={!modalData.datum}
+                className="px-4 py-2 text-sm bg-gray-900 text-white rounded-lg hover:bg-gray-800 disabled:opacity-50"
+              >
+                Termin speichern
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* Modal: Fahrzeug-Detail - Umfangreich mit Sidebar */}
       {infoModal && (
         <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4" onClick={closeInfoModal}>
@@ -1147,12 +1198,13 @@ export function FaelligkeitenList({ data, onRefresh, currentUser, token }) {
                         </label>
                         <div className="flex items-center gap-2 px-4 py-2 bg-gray-50 rounded-xl">
                           <span className="text-sm text-gray-700">Termin:</span>
-                          <input 
-                            type="date"
-                            value={statusMap[infoModal.vin]?.service_termin || ''}
-                            onChange={(e) => handleStatusChange(infoModal.vin, 'service_termin', e.target.value)}
-                            className="text-sm border-0 bg-transparent focus:ring-0 p-0"
-                          />
+                          <button
+                            type="button"
+                            onClick={() => openTerminModal(infoModal.vin)}
+                            className="text-sm text-left hover:text-gray-950"
+                          >
+                            {statusMap[infoModal.vin]?.service_termin || 'Termin setzen'}
+                          </button>
                         </div>
                       </div>
                     </div>
