@@ -147,6 +147,8 @@ export function FaelligkeitenList({ data, onRefresh, currentUser, token }) {
     setModalData({ grund: '', datum: '' })
   }
 
+  const formatTermin = (datum) => datum ? datum.split('-').reverse().join('.') : 'Termin setzen'
+
   // Filterfunktion für Export wiederverwenden
   const getFilteredData = () => {
     return data.filter(f => {
@@ -860,9 +862,9 @@ export function FaelligkeitenList({ data, onRefresh, currentUser, token }) {
                     <button
                       type="button"
                       onClick={() => openTerminModal(f.vin)}
-                      className="w-full px-1 py-1 text-xs rounded border border-gray-300 hover:border-gray-400 transition-colors cursor-pointer text-left"
+                      className="w-full px-1 py-1 text-xs font-medium text-left text-gray-700 hover:text-gray-950 transition-colors"
                     >
-                      {statusMap[f.vin]?.service_termin || 'Termin setzen'}
+                      {formatTermin(statusMap[f.vin]?.service_termin)}
                     </button>
                   </td>
 
@@ -1201,9 +1203,9 @@ export function FaelligkeitenList({ data, onRefresh, currentUser, token }) {
                           <button
                             type="button"
                             onClick={() => openTerminModal(infoModal.vin)}
-                            className="text-sm text-left hover:text-gray-950"
+                            className="text-sm font-medium text-left text-gray-700 hover:text-gray-950"
                           >
-                            {statusMap[infoModal.vin]?.service_termin || 'Termin setzen'}
+                            {formatTermin(statusMap[infoModal.vin]?.service_termin)}
                           </button>
                         </div>
                       </div>
