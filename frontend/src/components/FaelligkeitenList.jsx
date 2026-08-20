@@ -858,12 +858,17 @@ export function FaelligkeitenList({ data, onRefresh, currentUser, token }) {
                   </td>
 
                   {/* Termin */}
-                  <td className="py-2 px-1">
+                  <td className="py-2 px-1 text-center">
                     <button
                       type="button"
                       onClick={() => openTerminModal(f.vin)}
-                      className="w-full px-1 py-1 text-xs font-medium text-left text-gray-700 hover:text-gray-950 transition-colors"
+                      className={`inline-flex items-center justify-center gap-1.5 rounded-md px-2 py-1 text-xs font-medium transition-colors focus:outline-none focus:ring-2 focus:ring-gray-400 focus:ring-offset-1 ${
+                        statusMap[f.vin]?.service_termin
+                          ? 'text-gray-700 hover:bg-gray-100 hover:text-gray-950'
+                          : 'bg-gray-900 text-white hover:bg-gray-800'
+                      }`}
                     >
+                      {statusMap[f.vin]?.service_termin ? <CalendarDaysIcon className="w-4 h-4" /> : <PlusIcon className="w-4 h-4" />}
                       {formatTermin(statusMap[f.vin]?.service_termin)}
                     </button>
                   </td>
@@ -1203,8 +1208,13 @@ export function FaelligkeitenList({ data, onRefresh, currentUser, token }) {
                           <button
                             type="button"
                             onClick={() => openTerminModal(infoModal.vin)}
-                            className="text-sm font-medium text-left text-gray-700 hover:text-gray-950"
+                            className={`inline-flex items-center gap-1 text-sm font-medium rounded-md px-1.5 py-1 transition-colors ${
+                              statusMap[infoModal.vin]?.service_termin
+                                ? 'text-gray-700 hover:bg-gray-100 hover:text-gray-950'
+                                : 'bg-gray-900 text-white hover:bg-gray-800'
+                            }`}
                           >
+                            {statusMap[infoModal.vin]?.service_termin ? <CalendarDaysIcon className="w-4 h-4" /> : <PlusIcon className="w-4 h-4" />}
                             {formatTermin(statusMap[infoModal.vin]?.service_termin)}
                           </button>
                         </div>
