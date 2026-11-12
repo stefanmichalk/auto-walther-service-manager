@@ -48,8 +48,8 @@ export function Segmented({ value, onChange, options }) {
 
 const TAG_DOTS = {
   offen: 'bg-gray-400',
-  angeschrieben: 'bg-sky-500',
-  termin: 'bg-brand-500',
+  angeschrieben: 'bg-orange-500',
+  termin: 'bg-brand-600',
   wiedervorlage: 'bg-amber-500',
   'überfällig': 'bg-red-600',
   ausgetragen: 'bg-red-600',

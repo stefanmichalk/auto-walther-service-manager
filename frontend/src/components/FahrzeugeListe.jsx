@@ -28,7 +28,7 @@ export function FahrzeugeListe({ token, globalSearch }) {
     if (st.ausgetragen) return { text: 'ausgetragen', dot: 'bg-red-600' }
     if (st.wiedervorlage_datum) return { text: 'wiedervorlage', dot: 'bg-amber-500' }
     if (st.service_termin) return { text: 'termin', dot: 'bg-brand-500' }
-    if (st.angeschrieben) return { text: 'angeschrieben', dot: 'bg-sky-500' }
+    if (st.angeschrieben) return { text: 'angeschrieben', dot: 'bg-orange-500' }
     return { text: 'offen', dot: 'bg-gray-400' }
   }
 

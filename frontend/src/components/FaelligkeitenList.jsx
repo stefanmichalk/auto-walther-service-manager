@@ -22,7 +22,8 @@ import {
   TruckIcon,
   ClipboardDocumentListIcon,
   ChevronDownIcon,
-  DocumentTextIcon
+  DocumentTextIcon,
+  CalendarPlusIcon
 } from '../icons'
 import { CheckCircleSolid } from '../icons'
 import { TerminForm } from './TerminForm'
@@ -785,8 +786,8 @@ export function FaelligkeitenList({ data, onRefresh, currentUser, token, globalS
               <th className="w-[132px] py-3 pl-5 pr-3 text-left">Fällig</th>
               <th className="w-[24%] py-3 px-3 text-left">Fahrzeug</th>
               <th className="py-3 px-3 text-left">Anlass</th>
-              <th className="w-[190px] py-3 px-3 text-left">Status</th>
-              <th className="w-[236px] py-3 pl-3 pr-5 text-right"><span className="sr-only">Aktionen</span></th>
+              <th className="w-[220px] py-3 px-3 text-left">Status</th>
+              <th className="w-[200px] py-3 pl-3 pr-5 text-right"><span className="sr-only">Aktionen</span></th>
             </tr>
           </thead>
           <tbody>
@@ -813,7 +814,7 @@ export function FaelligkeitenList({ data, onRefresh, currentUser, token, globalS
                     ? { key: 'angeschrieben', text: 'angeschrieben, wartet' }
                     : { key: 'offen', text: 'offen' }
               const toggleCls = (on) => `w-9 h-9 grid place-items-center border transition-colors ${
-                on ? 'bg-brand-50 border-brand-700 text-brand-700' : 'bg-white border-gray-300 text-gray-600 hover:border-gray-900 hover:text-gray-900'
+                on ? 'bg-brand-600 border-brand-600 text-white hover:bg-brand-700' : 'bg-white border-gray-300 text-gray-500 hover:border-gray-900 hover:text-gray-900'
               }`
 
               return (
@@ -863,7 +864,7 @@ export function FaelligkeitenList({ data, onRefresh, currentUser, token, globalS
 
                   {/* Status */}
                   <td className="py-3 px-3 align-top">
-                    <StatusTag status={st.key}>{st.text}</StatusTag>
+                    <div className="truncate" title={st.text}><StatusTag status={st.key}>{st.text}</StatusTag></div>
                   </td>
 
                   {/* Aktionen */}
@@ -873,9 +874,10 @@ export function FaelligkeitenList({ data, onRefresh, currentUser, token, globalS
                         type="button"
                         onClick={() => openTerminModal(f.vin)}
                         title={hasTermin ? `Termin ${formatTermin(status.service_termin)} ändern` : 'Termin eintragen'}
-                        className={hasTermin ? toggleCls(true) : 'h-9 w-[92px] inline-flex items-center justify-center gap-1.5 whitespace-nowrap border bg-white border-gray-900 text-gray-900 hover:bg-gray-100 font-semibold uppercase tracking-[0.1em] text-[11.5px]'}
+                        aria-label={hasTermin ? 'Termin ändern' : 'Termin eintragen'}
+                        className={toggleCls(hasTermin)}
                       >
-                        {hasTermin ? <CalendarDaysIcon className="w-[18px] h-[18px]" /> : <><PlusIcon className="w-4 h-4" />Termin</>}
+                        {hasTermin ? <CalendarDaysIcon className="w-[18px] h-[18px]" /> : <CalendarPlusIcon className="w-[18px] h-[18px]" />}
                       </button>
                       <button
                         type="button"

@@ -1,7 +1,7 @@
 // Tabler Icons (Outline, Strich 1.75) mit den bisherigen Namen,
 // damit die Komponenten nur den Import ändern müssen.
 import {
-  IconArchive, IconDownload, IconRefresh, IconLogout, IconUpload, IconBell, IconCalendarEvent,
+  IconArchive, IconDownload, IconRefresh, IconLogout, IconUpload, IconBell, IconCalendarEvent, IconCalendarPlus,
   IconCalendar, IconChartBar, IconCircleCheck, IconCheck, IconChevronDown, IconChevronLeft,
   IconChevronRight, IconDatabase, IconClipboard, IconClipboardList, IconClock, IconSettings,
   IconFileText, IconDotsVertical, IconMail, IconAlertCircle, IconAlertTriangle, IconEye, IconEyeOff,
@@ -23,6 +23,7 @@ export const ArrowUpTrayIcon = wrap(IconUpload)
 export const BellIcon = wrap(IconBell)
 export const CalendarDaysIcon = wrap(IconCalendarEvent)
 export const CalendarIcon = wrap(IconCalendar)
+export const CalendarPlusIcon = wrap(IconCalendarPlus)
 export const ChartBarIcon = wrap(IconChartBar)
 export const CheckCircleIcon = wrap(IconCircleCheck)
 export const CheckCircleSolid = wrap(IconCircleCheckFilled)
