@@ -523,7 +523,7 @@ function App() {
                   setGlobalSearch(e.target.value)
                   if (activeTab === 'admin' || activeTab === 'auslastung') setActiveTab('fahrzeuge')
                 }}
-                className="w-full h-10 pl-10 pr-9 bg-white border border-gray-300 hover:border-gray-400 text-sm placeholder:text-gray-500 focus:outline-none focus:border-gray-900 focus:ring-2 focus:ring-gray-900 transition-colors"
+                className="field w-full pl-10 pr-9"
               />
               {globalSearch && (
                 <button

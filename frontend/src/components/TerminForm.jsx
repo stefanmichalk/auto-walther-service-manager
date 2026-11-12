@@ -59,13 +59,13 @@ export function TerminForm({ fahrzeuge, onSave, onClose }) {
 
       <form onSubmit={handleSubmit} className="grid grid-cols-4 gap-4">
         <div>
-          <label className="block text-sm font-medium text-gray-700 mb-1">
+          <label className="field-label">
             Fahrzeug (VIN)
           </label>
           <select
             value={formData.vin}
             onChange={(e) => handleVinSelect(e.target.value)}
-            className="w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500"
+            className="field w-full"
             required
           >
             <option value="">-- Auswählen --</option>
@@ -78,26 +78,26 @@ export function TerminForm({ fahrzeuge, onSave, onClose }) {
         </div>
 
         <div>
-          <label className="block text-sm font-medium text-gray-700 mb-1">
+          <label className="field-label">
             Kennzeichen
           </label>
           <input
             type="text"
             value={formData.kennzeichen}
             onChange={(e) => setFormData(prev => ({ ...prev, kennzeichen: e.target.value }))}
-            className="w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500"
+            className="field w-full"
             placeholder="FG-XX 123"
           />
         </div>
 
         <div>
-          <label className="block text-sm font-medium text-gray-700 mb-1">
+          <label className="field-label">
             Termin-Typ
           </label>
           <select
             value={formData.typ}
             onChange={(e) => setFormData(prev => ({ ...prev, typ: e.target.value }))}
-            className="w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500"
+            className="field w-full"
           >
             <option value="inspektion">Inspektion</option>
             <option value="hu">HU / AU</option>
@@ -106,53 +106,53 @@ export function TerminForm({ fahrzeuge, onSave, onClose }) {
         </div>
 
         <div>
-          <label className="block text-sm font-medium text-gray-700 mb-1">
+          <label className="field-label">
             Datum
           </label>
           <input
             type="date"
             value={formData.datum}
             onChange={(e) => setFormData(prev => ({ ...prev, datum: e.target.value }))}
-            className="w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500"
+            className="field w-full"
             required
           />
         </div>
 
         <div>
-          <label className="block text-sm font-medium text-gray-700 mb-1">
+          <label className="field-label">
             KM-Stand
           </label>
           <input
             type="number"
             value={formData.km_stand}
             onChange={(e) => setFormData(prev => ({ ...prev, km_stand: e.target.value }))}
-            className="w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500"
+            className="field w-full"
             placeholder="50000"
           />
         </div>
 
         <div>
-          <label className="block text-sm font-medium text-gray-700 mb-1">
+          <label className="field-label">
             Bezeichnung
           </label>
           <input
             type="text"
             value={formData.bezeichnung}
             onChange={(e) => setFormData(prev => ({ ...prev, bezeichnung: e.target.value }))}
-            className="w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500"
+            className="field w-full"
             placeholder="7. Wartung"
           />
         </div>
 
         <div className="col-span-2">
-          <label className="block text-sm font-medium text-gray-700 mb-1">
+          <label className="field-label">
             Vermerk
           </label>
           <input
             type="text"
             value={formData.vermerk}
             onChange={(e) => setFormData(prev => ({ ...prev, vermerk: e.target.value }))}
-            className="w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500"
+            className="field w-full"
             placeholder="Ölwechsel + Filter"
           />
         </div>

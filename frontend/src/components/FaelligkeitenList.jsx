@@ -1,4 +1,5 @@
 import { useState, useEffect, useRef } from 'react'
+import { StatusTag } from './ui'
 import { 
   CheckCircleIcon, 
   ExclamationTriangleIcon, 
@@ -20,7 +21,8 @@ import {
   UserIcon,
   TruckIcon,
   ClipboardDocumentListIcon,
-  ChevronDownIcon
+  ChevronDownIcon,
+  DocumentTextIcon
 } from '../icons'
 import { CheckCircleSolid } from '../icons'
 import { TerminForm } from './TerminForm'
@@ -147,6 +149,26 @@ export function FaelligkeitenList({ data, onRefresh, currentUser, token, globalS
     await handleStatusChange(modal.vin, 'service_termin', modalData.datum)
     setModal({ type: null, vin: null })
     setModalData({ grund: '', datum: '' })
+  }
+
+  const parseDE = (d) => {
+    if (!d) return new Date(9999, 11, 31)
+    if (d.includes('.')) { const [dd, mm, yy] = d.split('.'); return new Date(yy, mm - 1, dd) }
+    return new Date(d)
+  }
+  const daysFromToday = (d) => {
+    if (!d) return null
+    const t = new Date(); t.setHours(0, 0, 0, 0)
+    const x = parseDE(d); if (isNaN(x)) return null
+    return Math.round((x - t) / 86400000)
+  }
+
+  const relTage = (d) => {
+    if (d === null) return ''
+    if (d === 0) return 'heute'
+    const n = Math.abs(d)
+    const t = n >= 60 ? `${Math.round(n / 30.4)} Mon.` : `${n} ${n === 1 ? 'Tag' : 'Tagen'}`
+    return d < 0 ? `seit ${t}` : `in ${t}`
   }
 
   const formatTermin = (datum) => datum ? datum.split('-').reverse().join('.') : 'Termin setzen'
@@ -510,7 +532,7 @@ export function FaelligkeitenList({ data, onRefresh, currentUser, token, globalS
           <select
             value={filterUrgency}
             onChange={(e) => setFilterUrgency(e.target.value)}
-            className="flex-shrink-0 px-3 py-2 text-sm bg-white border border-gray-300 hover:border-gray-400 focus:border-gray-900 outline-none"
+            className="field flex-shrink-0"
           >
             <option value="alle">Alle</option>
             <option value="ueberfaellig">Überfällig</option>
@@ -521,7 +543,7 @@ export function FaelligkeitenList({ data, onRefresh, currentUser, token, globalS
           <select
             value={filterStatus}
             onChange={(e) => setFilterStatus(e.target.value)}
-            className="flex-shrink-0 px-3 py-2 text-sm bg-white border border-gray-300 hover:border-gray-400 focus:border-gray-900 outline-none"
+            className="field flex-shrink-0"
           >
             <option value="alle">Alle Status</option>
             <option value="offen">Offen</option>
@@ -534,7 +556,7 @@ export function FaelligkeitenList({ data, onRefresh, currentUser, token, globalS
           <select
             value={filterType}
             onChange={(e) => setFilterType(e.target.value)}
-            className="flex-shrink-0 px-3 py-2 text-sm bg-white border border-gray-300 hover:border-gray-400 focus:border-gray-900 outline-none"
+            className="field flex-shrink-0"
           >
             <option value="alle">Alle Typen</option>
             <option value="service">Service</option>
@@ -545,7 +567,7 @@ export function FaelligkeitenList({ data, onRefresh, currentUser, token, globalS
           <select
             value={filterMarke}
             onChange={(e) => setFilterMarke(e.target.value)}
-            className="flex-shrink-0 px-3 py-2 text-sm bg-white border border-gray-300 hover:border-gray-400 focus:border-gray-900 outline-none"
+            className="field flex-shrink-0"
           >
             <option value="alle">Alle Marken</option>
             {[...new Set(data.map(f => f.hersteller?.toUpperCase()).filter(Boolean))].sort().map(marke => (
@@ -556,7 +578,7 @@ export function FaelligkeitenList({ data, onRefresh, currentUser, token, globalS
           <select
             value={filterMonat}
             onChange={(e) => setFilterMonat(e.target.value)}
-            className="flex-shrink-0 px-3 py-2 text-sm bg-white border border-gray-300 hover:border-gray-400 focus:border-gray-900 outline-none"
+            className="field flex-shrink-0"
           >
             <option value="alle">Alle Monate</option>
             <option value="1">Januar</option>
@@ -576,7 +598,7 @@ export function FaelligkeitenList({ data, onRefresh, currentUser, token, globalS
           <select
             value={filterJahr}
             onChange={(e) => setFilterJahr(e.target.value)}
-            className="flex-shrink-0 px-3 py-2 text-sm bg-white border border-gray-300 hover:border-gray-400 focus:border-gray-900 outline-none"
+            className="field flex-shrink-0"
           >
             <option value="alle">Alle Jahre</option>
             {[...new Set(data.map(f => {
@@ -756,227 +778,147 @@ export function FaelligkeitenList({ data, onRefresh, currentUser, token, globalS
             })}
         </div>
 
-        {/* Desktop: Table View */}
-        <table className="hidden md:table w-full text-sm">
+        {/* Desktop: Tabelle */}
+        <table className="hidden md:table w-full table-fixed text-sm">
           <thead className="sticky top-0 bg-white z-10">
             <tr className="border-b border-gray-200">
-              <th className="w-8 pb-3 pl-4"></th>
-              <th className="w-24 pb-3 text-left font-medium text-gray-500">Datum</th>
-              <th className="w-36 pb-3 text-left font-medium text-gray-500">Fahrzeug</th>
-              <th className="w-28 pb-3 text-left font-medium text-gray-500">Service</th>
-              <th className="w-28 pb-3 text-left font-medium text-gray-500">Inspektion</th>
-              <th className="w-20 pb-3 text-left font-medium text-gray-500">HU</th>
-              <th className="w-24 pb-3 text-center" title="Kunde wurde angeschrieben">
-                <span className="inline-flex items-center gap-1"><EnvelopeIcon className="w-3.5 h-3.5" />Angeschr.</span>
-              </th>
-              <th className="w-28 pb-3 text-center font-medium text-gray-500 text-xs">Termin</th>
-              <th className="w-24 pb-3 text-center" title="Telefonisch nachgefasst">
-                <span className="inline-flex items-center gap-1"><PhoneIcon className="w-3.5 h-3.5" />Nachgef.</span>
-              </th>
-              <th className="w-8 pb-3"></th>
+              <th className="w-[132px] py-3 pl-5 pr-3 text-left">Fällig</th>
+              <th className="w-[24%] py-3 px-3 text-left">Fahrzeug</th>
+              <th className="py-3 px-3 text-left">Anlass</th>
+              <th className="w-[190px] py-3 px-3 text-left">Status</th>
+              <th className="w-[236px] py-3 pl-3 pr-5 text-right"><span className="sr-only">Aktionen</span></th>
             </tr>
           </thead>
-          <tbody className="divide-y divide-gray-100">
+          <tbody>
             {getFilteredData()
-              .sort((a, b) => {
-                // Nach Datum aufsteigend sortieren
-                const parseDate = (dateStr) => {
-                  if (!dateStr) return new Date(9999, 11, 31)
-                  if (dateStr.includes('.')) {
-                    const [d, m, y] = dateStr.split('.')
-                    return new Date(y, m - 1, d)
-                  }
-                  return new Date(dateStr)
-                }
-                return parseDate(a.nextDate) - parseDate(b.nextDate)
-              })
+              .sort((a, b) => parseDE(a.nextDate) - parseDE(b.nextDate))
               .map((f, i) => {
               const status = statusMap[f.vin] || {}
               const hasTermin = !!status.service_termin
               const hasAngeschrieben = !!status.angeschrieben
+              const hasNachgefasst = !!status.nachgefasst
               const isOverdue = f.urgency === 'ueberfaellig'
               const isDringend = f.urgency === 'dringend'
-              
-              // Zeilen-Styling basierend auf Status
-              const rowClass = hasTermin 
-                ? 'bg-emerald-50/30' 
-                : hasAngeschrieben 
-                  ? '' 
-                  : isOverdue 
-                    ? 'bg-red-50/50' 
-                    : isDringend 
-                      ? 'bg-amber-50/30' 
-                      : ''
-              
+              const days = daysFromToday(f.nextDate)
+              const anlass = [
+                f.serviceFaellig && { typ: 'Service', datum: f.serviceFaellig, info: f.serviceBezeichnung },
+                f.inspektionTermin && { typ: 'Inspektion', datum: f.inspektionTermin, info: f.inspektionVermerk },
+                f.huTermin && { typ: 'HU', datum: f.huTermin },
+              ].filter(Boolean)
+              const st = hasTermin
+                ? { key: 'termin', text: `Termin ${formatTermin(status.service_termin)}` }
+                : hasNachgefasst
+                  ? { key: 'angeschrieben', text: 'angeschrieben, nachgefasst' }
+                  : hasAngeschrieben
+                    ? { key: 'angeschrieben', text: 'angeschrieben, wartet' }
+                    : { key: 'offen', text: 'offen' }
+              const toggleCls = (on) => `w-9 h-9 grid place-items-center border transition-colors ${
+                on ? 'bg-brand-50 border-brand-700 text-brand-700' : 'bg-white border-gray-300 text-gray-600 hover:border-gray-900 hover:text-gray-900'
+              }`
+
               return (
-                <tr 
-                  key={f.vin || i} 
-                  className={`group hover:bg-gray-50/50 transition-colors ${rowClass}`}
+                <tr
+                  key={f.vin || i}
+                  onClick={() => openInfoModal(f)}
+                  onKeyDown={e => { if (e.key === 'Enter' && e.target === e.currentTarget) openInfoModal(f) }}
+                  tabIndex={0}
+                  title="Fahrzeug öffnen"
+                  className="group cursor-pointer border-b border-gray-200 last:border-0 hover:bg-gray-50 focus:outline-none focus-visible:bg-brand-50 transition-colors"
                 >
-                  {/* Status Icon */}
-                  <td className="py-3 pl-4 pr-2">
-                    {hasTermin ? (
-                      <CheckCircleSolid className="w-5 h-5 text-emerald-500" />
-                    ) : hasAngeschrieben ? (
-                      <EnvelopeIcon className="w-5 h-5 text-sky-500" />
-                    ) : isOverdue ? (
-                      <ExclamationTriangleIcon className="w-5 h-5 text-red-500" />
-                    ) : isDringend ? (
-                      <ExclamationTriangleIcon className="w-5 h-5 text-amber-500" />
-                    ) : (
-                      <ClockIcon className="w-5 h-5 text-gray-300" />
+                  {/* Fällig */}
+                  <td className={`py-3 pl-5 pr-3 align-top relative ${!hasTermin && (isOverdue || isDringend) ? '' : ''}`}>
+                    {!hasTermin && (isOverdue || isDringend) && (
+                      <span className={`absolute left-0 top-2 bottom-2 w-[3px] ${isOverdue ? 'bg-red-600' : 'bg-amber-500'}`} />
                     )}
+                    <div className={`tabular-nums ${!hasTermin && isOverdue ? 'text-red-600' : !hasTermin && isDringend ? 'text-amber-700' : 'text-gray-900'}`}>{f.nextDate || '–'}</div>
+                    <div className="text-xs text-gray-500 mt-0.5 whitespace-nowrap">
+                      {relTage(days)}
+                    </div>
                   </td>
 
-                  {/* Datum */}
-                  <td className="py-3 pr-4">
-                    <span className={`font-medium tabular-nums ${
-                      isOverdue ? 'text-red-600' : isDringend ? 'text-amber-600' : 'text-gray-900'
-                    }`}>
-                      {f.nextDate}
-                    </span>
-                  </td>
-
-                  {/* Fahrzeug: Kennzeichen + Kunde */}
-                  <td className="py-2 pr-4">
-                    <button 
-                      onClick={() => openInfoModal(f)}
-                      className="text-left hover:bg-gray-100 rounded px-1 -mx-1 transition-colors"
-                    >
-                      <div className="font-medium text-gray-900 flex items-center gap-1">
+                  {/* Fahrzeug */}
+                  <td className="py-3 px-3 align-top">
+                    <div className="min-w-0">
+                      <div className="font-medium text-gray-900 group-hover:text-brand-700 group-hover:underline underline-offset-4 flex items-center gap-1.5">
                         {f.kennzeichen || '–'}
-                        {status.notiz && (
-                          <svg title={status.notiz} className="w-3.5 h-3.5 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 8h10M7 12h4m1 8l-4-4H5a2 2 0 01-2-2V6a2 2 0 012-2h14a2 2 0 012 2v8a2 2 0 01-2 2h-3l-4 4z" />
-                          </svg>
-                        )}
-                        <InformationCircleIcon className="w-3.5 h-3.5 text-gray-400" />
+                        {status.notiz && <span title={status.notiz} className="text-gray-500"><DocumentTextIcon className="w-3.5 h-3.5" /></span>}
                       </div>
-                      <div className="text-xs text-gray-500 truncate max-w-[140px]" title={f.kunde}>
-                        {f.kunde || '–'}
-                      </div>
-                    </button>
+                      <div className="text-xs text-gray-600 truncate max-w-[220px]" title={f.kunde}>{f.kunde || '–'}</div>
+                    </div>
                   </td>
 
-                  {/* Service fällig */}
-                  <td className="py-3 pr-4">
-                    {f.serviceFaellig ? (
-                      <div>
-                        <div className="text-gray-900 tabular-nums">{f.serviceFaellig}</div>
-                        <div className="text-xs text-gray-400 truncate max-w-[140px]" title={f.serviceBezeichnung}>
-                          {f.serviceBezeichnung}
-                        </div>
-                      </div>
-                    ) : (
-                      <span className="text-gray-300">–</span>
-                    )}
+                  {/* Anlass */}
+                  <td className="py-3 px-3 align-top">
+                    <div className="flex flex-wrap gap-x-4 gap-y-1">
+                      {anlass.length === 0 && <span className="text-gray-500">–</span>}
+                      {anlass.map(x => (
+                        <span key={x.typ} className="inline-flex items-baseline gap-1.5 whitespace-nowrap" title={x.info || undefined}>
+                          <span className={`text-[10.5px] font-medium uppercase tracking-[0.1em] ${x.datum === f.nextDate ? 'text-gray-900' : 'text-gray-500'}`}>{x.typ}</span>
+                          <span className={`tabular-nums ${x.datum === f.nextDate ? 'text-gray-900' : 'text-gray-600'}`}>{x.datum}</span>
+                        </span>
+                      ))}
+                    </div>
+                    {f.serviceBezeichnung && <div className="text-xs text-gray-500 mt-0.5 truncate">{f.serviceBezeichnung}</div>}
                   </td>
 
-                  {/* Inspektion */}
-                  <td className="py-3 pr-4">
-                    {f.inspektionTermin ? (
-                      <div>
-                        <span className="text-gray-900 tabular-nums">{f.inspektionTermin}</span>
-                        {f.inspektionVermerk && (
-                          <div className="text-xs text-gray-400 truncate max-w-[120px]" title={f.inspektionVermerk}>
-                            {f.inspektionVermerk}
-                          </div>
-                        )}
-                      </div>
-                    ) : (
-                      <span className="text-gray-300">–</span>
-                    )}
+                  {/* Status */}
+                  <td className="py-3 px-3 align-top">
+                    <StatusTag status={st.key}>{st.text}</StatusTag>
                   </td>
 
-                  {/* HU */}
-                  <td className="py-3 pr-4">
-                    <span className={f.huTermin ? 'text-gray-900 tabular-nums' : 'text-gray-300'}>
-                      {f.huTermin || '–'}
-                    </span>
-                  </td>
-
-                  {/* Mail */}
-                  <td className="py-2 text-center">
-                    <button
-                      onClick={() => handleStatusChange(f.vin, 'angeschrieben', !statusMap[f.vin]?.angeschrieben)}
-                      className={`w-5 h-5 rounded-full flex items-center justify-center transition-colors mx-auto ${
-                        statusMap[f.vin]?.angeschrieben 
-                          ? 'bg-gray-800' 
-                          : 'border-2 border-gray-300 hover:border-gray-400'
-                      }`}
-                    >
-                      {statusMap[f.vin]?.angeschrieben && (
-                        <svg className="w-3 h-3 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={3}>
-                          <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
-                        </svg>
-                      )}
-                    </button>
-                  </td>
-
-                  {/* Termin */}
-                  <td className="py-2 px-1 text-center">
-                    <button
-                      type="button"
-                      onClick={() => openTerminModal(f.vin)}
-                      className={`inline-flex items-center justify-center gap-1.5 whitespace-nowrap px-2 py-1 text-xs font-medium transition-colors focus:outline-none focus:ring-2 focus:ring-gray-900 ${
-                        statusMap[f.vin]?.service_termin
-                          ? 'text-gray-700 hover:bg-gray-100 hover:text-gray-950'
-                          : 'border border-gray-900 bg-white text-gray-900 hover:bg-gray-100'
-                      }`}
-                    >
-                      {statusMap[f.vin]?.service_termin ? <CalendarDaysIcon className="w-4 h-4" /> : <PlusIcon className="w-4 h-4" />}
-                      {formatTermin(statusMap[f.vin]?.service_termin)}
-                    </button>
-                  </td>
-
-                  {/* Telefon - nur sichtbar wenn: angeschrieben + kein Termin + >7 Tage überfällig */}
-                  <td className="py-2 text-center">
-                    {(() => {
-                      const showPhone = hasAngeschrieben && !hasTermin && isOverdue;
-                      if (!showPhone) return null;
-                      
-                      return (
-                        <button
-                          onClick={() => handleStatusChange(f.vin, 'nachgefasst', !statusMap[f.vin]?.nachgefasst)}
-                          className={`w-5 h-5 rounded-full flex items-center justify-center transition-colors mx-auto ${
-                            statusMap[f.vin]?.nachgefasst 
-                              ? 'bg-gray-800' 
-                              : 'border-2 border-gray-300 hover:border-gray-400'
-                          }`}
-                        >
-                          {statusMap[f.vin]?.nachgefasst && (
-                            <svg className="w-3 h-3 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={3}>
-                              <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
-                            </svg>
-                          )}
-                        </button>
-                      );
-                    })()}
-                  </td>
-
-                  {/* Kontextmenü */}
-                  <td className="py-2 text-center relative">
-                    <button
-                      onClick={() => setOpenMenu(openMenu === f.vin ? null : f.vin)}
-                      className="p-1 hover:bg-gray-100 rounded transition-colors"
-                    >
-                      <EllipsisVerticalIcon className="w-4 h-4 text-gray-400" />
-                    </button>
+                  {/* Aktionen */}
+                  <td className="py-2.5 pl-3 pr-5 align-top relative cursor-default" onClick={e => e.stopPropagation()}>
+                    <div className="flex items-center justify-end gap-1.5">
+                      <button
+                        type="button"
+                        onClick={() => openTerminModal(f.vin)}
+                        title={hasTermin ? `Termin ${formatTermin(status.service_termin)} ändern` : 'Termin eintragen'}
+                        className={hasTermin ? toggleCls(true) : 'h-9 w-[92px] inline-flex items-center justify-center gap-1.5 whitespace-nowrap border bg-white border-gray-900 text-gray-900 hover:bg-gray-100 font-display font-semibold uppercase tracking-[0.1em] text-[11.5px]'}
+                      >
+                        {hasTermin ? <CalendarDaysIcon className="w-[18px] h-[18px]" /> : <><PlusIcon className="w-4 h-4" />Termin</>}
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => handleStatusChange(f.vin, 'angeschrieben', !hasAngeschrieben)}
+                        aria-pressed={hasAngeschrieben}
+                        title={hasAngeschrieben ? 'Angeschrieben – klicken zum Zurücknehmen' : 'Als angeschrieben markieren'}
+                        className={toggleCls(hasAngeschrieben)}
+                      >
+                        <EnvelopeIcon className="w-[18px] h-[18px]" />
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => handleStatusChange(f.vin, 'nachgefasst', !hasNachgefasst)}
+                        aria-pressed={hasNachgefasst}
+                        title={hasNachgefasst ? 'Nachgefasst – klicken zum Zurücknehmen' : 'Als telefonisch nachgefasst markieren'}
+                        className={toggleCls(hasNachgefasst)}
+                      >
+                        <PhoneIcon className="w-[18px] h-[18px]" />
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => setOpenMenu(openMenu === f.vin ? null : f.vin)}
+                        className="w-9 h-9 grid place-items-center rounded-full text-gray-600 hover:bg-gray-100 hover:text-gray-900"
+                        aria-label="Weitere Aktionen"
+                      >
+                        <EllipsisVerticalIcon className="w-[18px] h-[18px]" />
+                      </button>
+                    </div>
                     {openMenu === f.vin && (
-                      <div className="absolute right-0 top-8 bg-white border border-gray-200 rounded-lg shadow-lg z-20 py-1 min-w-[140px]">
-                        <button
-                          onClick={() => { setModal({ type: 'austragen', vin: f.vin }); setOpenMenu(null); }}
-                          className="w-full px-3 py-2 text-left text-sm hover:bg-gray-50 flex items-center gap-2"
-                        >
-                          <TrashIcon className="w-4 h-4 text-gray-400" />
-                          Austragen
-                        </button>
+                      <div className="absolute right-5 top-12 bg-white border border-gray-200 shadow-lg z-20 py-1 min-w-[180px] text-left">
                         <button
                           onClick={() => { setModal({ type: 'wiedervorlage', vin: f.vin }); setOpenMenu(null); }}
-                          className="w-full px-3 py-2 text-left text-sm hover:bg-gray-50 flex items-center gap-2"
+                          className="w-full px-3 py-2 text-left text-sm hover:bg-gray-100 flex items-center gap-2"
                         >
-                          <ArrowPathIcon className="w-4 h-4 text-gray-400" />
+                          <ArrowPathIcon className="w-4 h-4 text-gray-600" />
                           Wiedervorlage
+                        </button>
+                        <button
+                          onClick={() => { setModal({ type: 'austragen', vin: f.vin }); setOpenMenu(null); }}
+                          className="w-full px-3 py-2 text-left text-sm text-red-600 hover:bg-red-50 flex items-center gap-2"
+                        >
+                          <TrashIcon className="w-4 h-4" />
+                          Austragen
                         </button>
                       </div>
                     )}
@@ -991,22 +933,6 @@ export function FaelligkeitenList({ data, onRefresh, currentUser, token, globalS
 
       {/* Footer Legend */}
       <div className="flex items-center gap-6 pt-3 mt-2 md:pt-4 md:mt-4 border-t border-gray-200 text-xs text-gray-500">
-        <div className="hidden md:flex items-center gap-1.5">
-          <CheckCircleSolid className="w-4 h-4 text-emerald-500" />
-          <span>Termin</span>
-        </div>
-        <div className="hidden md:flex items-center gap-1.5">
-          <EnvelopeIcon className="w-4 h-4 text-sky-500" />
-          <span>Angeschrieben</span>
-        </div>
-        <div className="hidden md:flex items-center gap-1.5">
-          <ExclamationTriangleIcon className="w-4 h-4 text-red-500" />
-          <span>Überfällig</span>
-        </div>
-        <div className="hidden md:flex items-center gap-1.5">
-          <ExclamationTriangleIcon className="w-4 h-4 text-amber-500" />
-          <span>Diese Woche</span>
-        </div>
         <div className="ml-auto font-mono text-xs text-gray-500">{getFilteredData().length} von {data.length} Einträgen</div>
       </div>
 
@@ -1021,11 +947,11 @@ export function FaelligkeitenList({ data, onRefresh, currentUser, token, globalS
               </button>
             </div>
             <div className="mb-4">
-              <label className="block text-sm font-medium text-gray-700 mb-1">Grund</label>
+              <label className="field-label">Grund</label>
               <textarea
                 value={modalData.grund}
                 onChange={(e) => setModalData(prev => ({ ...prev, grund: e.target.value }))}
-                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-gray-500 focus:border-gray-500"
+                className="field w-full"
                 rows={3}
                 placeholder="Grund für das Austragen..."
               />
@@ -1060,20 +986,20 @@ export function FaelligkeitenList({ data, onRefresh, currentUser, token, globalS
               </button>
             </div>
             <div className="mb-4">
-              <label className="block text-sm font-medium text-gray-700 mb-1">Datum</label>
+              <label className="field-label">Datum</label>
               <input
                 type="date"
                 value={modalData.datum}
                 onChange={(e) => setModalData(prev => ({ ...prev, datum: e.target.value }))}
-                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-gray-500 focus:border-gray-500"
+                className="field w-full"
               />
             </div>
             <div className="mb-4">
-              <label className="block text-sm font-medium text-gray-700 mb-1">Grund</label>
+              <label className="field-label">Grund</label>
               <textarea
                 value={modalData.grund}
                 onChange={(e) => setModalData(prev => ({ ...prev, grund: e.target.value }))}
-                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-gray-500 focus:border-gray-500"
+                className="field w-full"
                 rows={3}
                 placeholder="Grund für Wiedervorlage..."
               />
@@ -1107,12 +1033,12 @@ export function FaelligkeitenList({ data, onRefresh, currentUser, token, globalS
               </button>
             </div>
             <div className="mb-6">
-              <label className="block text-sm font-medium text-gray-700 mb-1">Datum</label>
+              <label className="field-label">Datum</label>
               <input
                 type="date"
                 value={modalData.datum}
                 onChange={(e) => setModalData(prev => ({ ...prev, datum: e.target.value }))}
-                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-gray-500 focus:border-gray-500"
+                className="field w-full"
                 autoFocus
               />
             </div>
@@ -1298,81 +1224,81 @@ export function FaelligkeitenList({ data, onRefresh, currentUser, token, globalS
                   <div className="space-y-6">
                     <div className="grid grid-cols-2 gap-4">
                       <div>
-                        <label className="block text-sm font-medium text-gray-700 mb-2">Name</label>
+                        <label className="field-label">Name</label>
                         <input 
                           type="text" 
                           value={editKunde.name}
                           onChange={(e) => setEditKunde(prev => ({ ...prev, name: e.target.value }))}
                           placeholder="Name eingeben..."
-                          className="w-full px-4 py-3 border border-gray-200 rounded-xl text-sm focus:ring-2 focus:ring-emerald-500 focus:border-transparent"
+                          className="field w-full"
                         />
                       </div>
                       <div>
-                        <label className="block text-sm font-medium text-gray-700 mb-2">Telefon</label>
+                        <label className="field-label">Telefon</label>
                         <input 
                           type="tel" 
                           value={editKunde.telefon}
                           onChange={(e) => setEditKunde(prev => ({ ...prev, telefon: e.target.value }))}
                           placeholder="Telefon..."
-                          className="w-full px-4 py-3 border border-gray-200 rounded-xl text-sm focus:ring-2 focus:ring-emerald-500 focus:border-transparent"
+                          className="field w-full"
                         />
                       </div>
                       <div>
-                        <label className="block text-sm font-medium text-gray-700 mb-2">Straße</label>
+                        <label className="field-label">Straße</label>
                         <input 
                           type="text" 
                           value={editKunde.strasse}
                           onChange={(e) => setEditKunde(prev => ({ ...prev, strasse: e.target.value }))}
                           placeholder="Straße..."
-                          className="w-full px-4 py-3 border border-gray-200 rounded-xl text-sm focus:ring-2 focus:ring-emerald-500 focus:border-transparent"
+                          className="field w-full"
                         />
                       </div>
                       <div>
-                        <label className="block text-sm font-medium text-gray-700 mb-2">PLZ / Ort</label>
+                        <label className="field-label">PLZ / Ort</label>
                         <div className="flex gap-2">
                           <input 
                             type="text" 
                             value={editKunde.plz}
                             onChange={(e) => setEditKunde(prev => ({ ...prev, plz: e.target.value }))}
                             placeholder="PLZ"
-                            className="w-24 px-4 py-3 border border-gray-200 rounded-xl text-sm focus:ring-2 focus:ring-emerald-500 focus:border-transparent"
+                            className="field w-24"
                           />
                           <input 
                             type="text" 
                             value={editKunde.ort}
                             onChange={(e) => setEditKunde(prev => ({ ...prev, ort: e.target.value }))}
                             placeholder="Ort"
-                            className="flex-1 px-4 py-3 border border-gray-200 rounded-xl text-sm focus:ring-2 focus:ring-emerald-500 focus:border-transparent"
+                            className="field flex-1"
                           />
                         </div>
                       </div>
                       <div className="col-span-2">
-                        <label className="block text-sm font-medium text-gray-700 mb-2">E-Mail</label>
+                        <label className="field-label">E-Mail</label>
                         <input 
                           type="email" 
                           value={editKunde.email}
                           onChange={(e) => setEditKunde(prev => ({ ...prev, email: e.target.value }))}
                           placeholder="E-Mail..."
-                          className="w-full px-4 py-3 border border-gray-200 rounded-xl text-sm focus:ring-2 focus:ring-emerald-500 focus:border-transparent"
+                          className="field w-full"
                         />
                       </div>
                     </div>
                     
                     <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-2">Notizen</label>
+                      <label className="field-label">Notizen</label>
                       <textarea 
                         rows={4}
                         value={editKunde.notizen}
                         onChange={(e) => setEditKunde(prev => ({ ...prev, notizen: e.target.value }))}
                         placeholder="Notizen zum Kunden..."
-                        className="w-full px-4 py-3 border border-gray-200 rounded-xl text-sm focus:ring-2 focus:ring-emerald-500 focus:border-transparent resize-none"
+                        className="field w-full"
                       />
                     </div>
                     
                     <div className="flex justify-end">
                       <button 
                         onClick={handleSaveKunde}
-                        className="px-6 py-2.5 bg-emerald-600 text-white rounded-xl hover:bg-emerald-700 transition-colors btn-caps min-h-[40px]"
+                        className="px-5 bg-brand-600 text-white hover:bg-brand-700 transition-colors btn-caps min-h-[40px]"
                       >
                         Speichern
                       </button>
@@ -1385,41 +1311,41 @@ export function FaelligkeitenList({ data, onRefresh, currentUser, token, globalS
                   <div className="space-y-6">
                     <div className="grid grid-cols-2 gap-4">
                       <div>
-                        <label className="block text-xs text-gray-500 mb-1">Kennzeichen</label>
+                        <label className="field-label">Kennzeichen</label>
                         <input
                           type="text"
                           value={editFahrzeug.kennzeichen}
                           onChange={e => setEditFahrzeug({ ...editFahrzeug, kennzeichen: e.target.value })}
-                          className="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-xl text-lg font-bold focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500"
+                          className="field w-full"
                         />
                       </div>
-                      <div className="bg-gray-50 rounded-xl p-4">
-                        <p className="text-xs text-gray-500 mb-1">Fahrgestellnummer</p>
-                        <p className="text-sm font-mono text-gray-900">{infoModal.vin}</p>
+                      <div>
+                        <label className="field-label">Fahrgestellnummer</label>
+                        <input type="text" readOnly value={infoModal.vin || ''} className="field w-full font-mono text-[13px]" />
                       </div>
                       <div>
-                        <label className="block text-xs text-gray-500 mb-1">Hersteller</label>
+                        <label className="field-label">Hersteller</label>
                         <input
                           type="text"
                           value={editFahrzeug.hersteller}
                           onChange={e => setEditFahrzeug({ ...editFahrzeug, hersteller: e.target.value })}
-                          className="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-xl focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500"
+                          className="field w-full"
                         />
                       </div>
                       <div>
-                        <label className="block text-xs text-gray-500 mb-1">Modell</label>
+                        <label className="field-label">Modell</label>
                         <input
                           type="text"
                           value={editFahrzeug.modell}
                           onChange={e => setEditFahrzeug({ ...editFahrzeug, modell: e.target.value })}
-                          className="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-xl focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500"
+                          className="field w-full"
                         />
                       </div>
                     </div>
                     <div className="flex justify-end pt-4 border-t border-gray-100">
                       <button
                         onClick={handleSaveFahrzeug}
-                        className="px-6 py-2.5 bg-emerald-600 text-white rounded-xl hover:bg-emerald-700 transition-colors btn-caps min-h-[40px]"
+                        className="px-5 bg-brand-600 text-white hover:bg-brand-700 transition-colors btn-caps min-h-[40px]"
                       >
                         Speichern
                       </button>

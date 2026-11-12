@@ -308,7 +308,7 @@ export function AuslastungView({ token }) {
                       max="20"
                       value={editKapazitaet !== null ? editKapazitaet : selectedDay.maxTermine}
                       onChange={(e) => setEditKapazitaet(parseInt(e.target.value) || 0)}
-                      className="w-16 px-2 py-1 text-sm border border-gray-200 rounded text-center"
+                      className="field field-sm w-16 text-center"
                     />
                     {editKapazitaet !== null && editKapazitaet !== selectedDay.maxTermine && (
                       <button
@@ -330,7 +330,7 @@ export function AuslastungView({ token }) {
                     placeholder="Fahrzeug suchen (Kennzeichen oder Kunde)..."
                     value={searchQuery}
                     onChange={(e) => handleSearch(e.target.value)}
-                    className="w-full px-3 py-2 text-sm border border-gray-200 rounded-lg focus:border-emerald-500 focus:ring-1 focus:ring-emerald-500 outline-none"
+                    className="field w-full"
                   />
                 </div>
                 {searchResults.length > 0 && (

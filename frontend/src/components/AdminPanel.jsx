@@ -332,7 +332,7 @@ export function AdminPanel({ token, onResetComplete }) {
                     value={kap.max_termine}
                     onChange={(e) => handleKapazitaetChange(i, 'max_termine', e.target.value)}
                     disabled={kap.aktiv !== 1}
-                    className="w-16 px-2 py-1 text-sm border border-slate-200 rounded-lg text-center disabled:bg-slate-50 disabled:text-slate-400"
+                    className="field field-sm w-16 text-center"
                   />
                   <span className="text-sm text-slate-500">Termine max.</span>
                 </div>
@@ -363,7 +363,7 @@ export function AdminPanel({ token, onResetComplete }) {
                 placeholder="Benutzername"
                 value={inviteData.username}
                 onChange={(e) => setInviteData({ ...inviteData, username: e.target.value })}
-                className="px-3 py-2 border border-primary-200 text-[13px] focus:border-primary-400 focus:ring-0 outline-none rounded-lg"
+                className="field"
                 required
               />
               <input
@@ -371,12 +371,12 @@ export function AdminPanel({ token, onResetComplete }) {
                 placeholder="Name"
                 value={inviteData.name}
                 onChange={(e) => setInviteData({ ...inviteData, name: e.target.value })}
-                className="px-3 py-2 border border-primary-200 text-[13px] focus:border-primary-400 focus:ring-0 outline-none rounded-lg"
+                className="field"
               />
               <select
                 value={inviteData.role}
                 onChange={(e) => setInviteData({ ...inviteData, role: e.target.value })}
-                className="px-3 py-2 border border-slate-200 text-sm focus:border-slate-400 focus:ring-0 outline-none bg-white"
+                className="field"
               >
                 <option value="user">User</option>
                 <option value="admin">Admin</option>
@@ -396,7 +396,7 @@ export function AdminPanel({ token, onResetComplete }) {
                 type="text"
                 value={inviteLink}
                 readOnly
-                className="flex-1 px-3 py-2 bg-white border border-emerald-200 text-sm font-mono"
+                className="field flex-1 font-mono"
               />
               <button
                 onClick={() => copyToClipboard(inviteLink)}
@@ -456,7 +456,7 @@ export function AdminPanel({ token, onResetComplete }) {
               <select
                 value={u.role}
                 onChange={(e) => handleRoleChange(u.id, e.target.value)}
-                className="text-[13px] border border-slate-300 px-2 py-1.5 bg-white hover:border-slate-400 focus:border-slate-900 outline-none"
+                className="field field-sm"
                 aria-label={`Rolle von ${u.username}`}
               >
                 <option value="user">Benutzer</option>

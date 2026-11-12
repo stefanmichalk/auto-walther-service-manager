@@ -77,7 +77,7 @@ export function FahrzeugeListe({ token, globalSearch }) {
             placeholder="Suche..."
             value={searchTerm}
             onChange={e => setSearchTerm(e.target.value)}
-            className="w-full pl-9 pr-4 py-2 text-sm bg-white border border-slate-200 focus:border-slate-400 focus:ring-0 outline-none transition-colors"
+            className="field w-full pl-9 pr-4"
           />
         </div>
 
