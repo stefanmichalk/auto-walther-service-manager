@@ -33,6 +33,14 @@ function App() {
   const [faelligkeiten, setFaelligkeiten] = useState([])
   const [activeTab, setActiveTab] = useState('faelligkeiten')
   const [globalSearch, setGlobalSearch] = useState('')
+  // Eingabe sofort anzeigen, Listen erst nach kurzer Tipp-Pause filtern (Debounce)
+  const [searchInput, setSearchInput] = useState('')
+  useEffect(() => {
+    if (searchInput === globalSearch) return
+    const t = setTimeout(() => setGlobalSearch(searchInput), 300)
+    return () => clearTimeout(t)
+  }, [searchInput])
+  const setSearchNow = (v) => { setSearchInput(v); setGlobalSearch(v) }
   const [loading, setLoading] = useState(false)
   
   // Auth State
@@ -518,17 +526,18 @@ function App() {
               <input 
                 type="text" 
                 placeholder="Suche (Kennzeichen, Kunde, VIN)..." 
-                value={globalSearch}
+                value={searchInput}
+                onKeyDown={e => { if (e.key === 'Enter') setGlobalSearch(searchInput); if (e.key === 'Escape') setSearchNow('') }}
                 onChange={e => {
-                  setGlobalSearch(e.target.value)
+                  setSearchInput(e.target.value)
                   if (activeTab === 'admin' || activeTab === 'auslastung') setActiveTab('fahrzeuge')
                 }}
                 className="field w-full pl-10 pr-9"
               />
-              {globalSearch && (
+              {searchInput && (
                 <button
                   type="button"
-                  onClick={() => setGlobalSearch('')}
+                  onClick={() => setSearchNow('')}
                   className="absolute right-2 top-1/2 -translate-y-1/2 p-1 text-gray-500 hover:text-gray-900"
                   aria-label="Suche leeren"
                 >
@@ -566,7 +575,7 @@ function App() {
               currentUser={user?.name || user?.username} 
               token={token} 
               globalSearch={globalSearch}
-              onSearchChange={setGlobalSearch}
+              onSearchChange={setSearchNow}
               onNavigate={setActiveTab}
             />
           )}
