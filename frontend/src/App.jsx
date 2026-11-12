@@ -409,9 +409,9 @@ function App() {
   ]
 
   return (
-    <div className="h-screen bg-gray-50 flex overflow-hidden">
+    <div className="h-[100dvh] w-full bg-gray-50 flex overflow-hidden">
       {/* Sidebar - Clean & Modern */}
-      <aside className="w-64 bg-white border-r border-gray-200 flex flex-col flex-shrink-0">
+      <aside className="hidden md:flex w-64 bg-white border-r border-gray-200 flex-col flex-shrink-0">
         {/* Logo */}
         <div className="h-16 px-6 flex items-center border-b border-gray-100">
           <div className="flex items-center gap-2">
@@ -508,9 +508,12 @@ function App() {
       {/* Main Content */}
       <div className="flex-1 flex flex-col min-w-0 bg-gray-50">
         {/* Top Bar */}
-        <header className="h-16 bg-white border-b border-gray-200 flex items-center justify-between px-8 flex-shrink-0">
-          <div className="flex items-center gap-4">
-            <div className="relative">
+        <header className="h-16 bg-white border-b border-gray-200 flex items-center gap-3 px-4 md:px-8 flex-shrink-0">
+          <div className="md:hidden w-8 h-8 bg-brand-600 flex items-center justify-center flex-shrink-0">
+            <TruckIcon className="w-5 h-5 text-white" />
+          </div>
+          <div className="flex-1 md:flex-none flex items-center gap-4 min-w-0">
+            <div className="relative w-full md:w-80">
               <MagnifyingGlassIcon className="w-5 h-5 text-gray-400 absolute left-3 top-1/2 -translate-y-1/2" />
               <input 
                 type="text" 
@@ -520,7 +523,7 @@ function App() {
                   setGlobalSearch(e.target.value)
                   if (activeTab === 'admin' || activeTab === 'auslastung') setActiveTab('fahrzeuge')
                 }}
-                className="w-80 h-10 pl-10 pr-9 bg-white border border-gray-300 hover:border-gray-400 text-sm placeholder:text-gray-500 focus:outline-none focus:border-gray-900 focus:ring-2 focus:ring-gray-900 transition-colors"
+                className="w-full h-10 pl-10 pr-9 bg-white border border-gray-300 hover:border-gray-400 text-sm placeholder:text-gray-500 focus:outline-none focus:border-gray-900 focus:ring-2 focus:ring-gray-900 transition-colors"
               />
               {globalSearch && (
                 <button
@@ -534,15 +537,17 @@ function App() {
               )}
             </div>
           </div>
-          <div className="flex items-center gap-2">
-            <button className="p-2 text-gray-400 hover:text-gray-600 hover:bg-gray-100 rounded-lg">
-              <BellIcon className="w-5 h-5" />
-            </button>
-          </div>
+          <button
+            onClick={handleLogout}
+            className="md:hidden p-2 text-gray-600 hover:text-gray-900"
+            aria-label="Abmelden"
+          >
+            <ArrowRightOnRectangleIcon className="w-5 h-5" />
+          </button>
         </header>
 
         {/* Page Header */}
-        <div className="px-8 py-6 flex-shrink-0">
+        <div className="px-4 md:px-8 pt-5 pb-4 md:py-6 flex-shrink-0">
           <h1 className="font-display text-[26px] font-light tracking-[-0.5px] text-gray-900">
             {activeTab === 'faelligkeiten' && 'Dashboard'}
             {activeTab === 'auslastung' && 'Auslastung'}
@@ -553,7 +558,7 @@ function App() {
         </div>
 
         {/* Content Area */}
-        <main className="flex-1 overflow-auto px-8 pb-8">
+        <main className="flex-1 overflow-auto px-4 md:px-8 pb-24 md:pb-8">
           {activeTab === 'faelligkeiten' && (
             <FaelligkeitenList 
               data={faelligkeiten} 
@@ -562,6 +567,7 @@ function App() {
               token={token} 
               globalSearch={globalSearch}
               onSearchChange={setGlobalSearch}
+              onNavigate={setActiveTab}
             />
           )}
           {activeTab === 'auslastung' && <AuslastungView token={token} />}
@@ -570,6 +576,27 @@ function App() {
           {activeTab === 'admin' && user?.role === 'admin' && <AdminPanel token={token} onResetComplete={fetchData} />}
         </main>
       </div>
+
+      {/* Mobile Tab-Leiste */}
+      <nav className="md:hidden fixed bottom-0 inset-x-0 z-40 bg-white/95 backdrop-blur border-t border-gray-200 pb-[env(safe-area-inset-bottom)]">
+        <div className="flex">
+          {[...navItems, ...(user?.role === 'admin' ? [{ id: 'admin', label: 'Admin', icon: Cog6ToothIcon }] : [])].map(item => {
+            const active = activeTab === item.id
+            return (
+              <button
+                key={item.id}
+                onClick={() => setActiveTab(item.id)}
+                aria-current={active ? 'page' : undefined}
+                className={`relative flex-1 flex flex-col items-center gap-1 pt-2.5 pb-2 font-display text-[9.5px] font-medium uppercase tracking-[0.06em] ${active ? 'text-gray-900' : 'text-gray-500'}`}
+              >
+                {active && <span className="absolute top-0 left-[28%] right-[28%] h-[2px] bg-brand-500" />}
+                <item.icon className={`w-6 h-6 ${active ? 'text-brand-700' : ''}`} />
+                {item.label}
+              </button>
+            )
+          })}
+        </div>
+      </nav>
 
       {/* Import-Vorschau Dialog */}
       {importPreview && parsedDataForImport && (

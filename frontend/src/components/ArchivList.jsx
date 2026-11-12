@@ -69,7 +69,7 @@ export function ArchivList({ currentUser, token, globalSearch }) {
 
   return (
     <Card className="flex flex-col">
-      <div className="flex flex-wrap items-center gap-3 px-5 py-4 border-b border-gray-200">
+      <div className="flex flex-wrap items-center gap-3 px-3 md:px-5 py-3 md:py-4 border-b border-gray-200">
         <Segmented
           value={activeSection}
           onChange={setActiveSection}
@@ -78,7 +78,7 @@ export function ArchivList({ currentUser, token, globalSearch }) {
             { value: 'wiedervorlage', label: 'Wiedervorlage', icon: CalendarIcon, count: wiedervorlage.length },
           ]}
         />
-        <p className="text-sm text-gray-500">
+        <p className="hidden md:block text-sm text-gray-500">
           {activeSection === 'ausgetragen'
             ? 'Fahrzeuge, die nicht mehr angeschrieben werden (verkauft, verzogen, andere Werkstatt …)'
             : 'Fahrzeuge, die zu einem späteren Datum wieder ins Dashboard kommen'}
@@ -100,7 +100,32 @@ export function ArchivList({ currentUser, token, globalSearch }) {
           text={globalSearch ? 'Das Fahrzeug ist nicht ausgetragen und hat keine Wiedervorlage. Schau im Dashboard oder unter Fahrzeuge.' : null}
         />
       ) : (
-        <div className="overflow-x-auto">
+        <>
+        {/* Mobil: Karten */}
+        <ul className="md:hidden divide-y divide-gray-200">
+          {rows.map(item => {
+            const isWv = activeSection === 'wiedervorlage'
+            const due = isWv && item.wiedervorlage_datum <= today
+            const isToday = isWv && item.wiedervorlage_datum === today
+            return (
+              <li key={item.vin} className="px-4 py-3">
+                <div className="flex items-start justify-between gap-3">
+                  <VehicleCell kennzeichen={item.kennzeichen} kunde={item.kunde_name} vin={item.vin} />
+                  {isWv
+                    ? <StatusTag status={isToday ? 'heute' : due ? 'überfällig' : 'wiedervorlage'}>{toDE(item.wiedervorlage_datum)}</StatusTag>
+                    : <span className="text-xs text-gray-500 tabular-nums">{toDE(item.updated_at)}</span>}
+                </div>
+                <p className="mt-2 text-sm text-gray-900">{(isWv ? item.wiedervorlage_grund : item.austragen_grund) || <span className="text-gray-500">kein Grund angegeben</span>}</p>
+                <div className="mt-2">
+                  <Button size="sm" variant="secondary" disabled={busyVin === item.vin} onClick={() => handleReactivate(item.vin)}>
+                    {isWv ? 'Zurück ins Dashboard' : 'Reaktivieren'}
+                  </Button>
+                </div>
+              </li>
+            )
+          })}
+        </ul>
+        <div className="hidden md:block overflow-x-auto">
           <table className="w-full text-sm">
             <thead>
               <tr className="border-b border-gray-200">
@@ -139,6 +164,7 @@ export function ArchivList({ currentUser, token, globalSearch }) {
             </tbody>
           </table>
         </div>
+        </>
       )}
     </Card>
   )

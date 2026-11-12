@@ -20,7 +20,7 @@ export function CardHeader({ title, sub, right }) {
 // Segmented control: Pill-Spur, aktives Segment weiß mit blauer Unterkante
 export function Segmented({ value, onChange, options }) {
   return (
-    <div className="inline-flex items-center gap-1 p-1 rounded-full bg-gray-100" role="tablist">
+    <div className="inline-flex max-w-full items-center gap-1 p-1 rounded-full bg-gray-100 overflow-x-auto" role="tablist">
       {options.map(o => {
         const active = value === o.value
         return (
@@ -30,7 +30,7 @@ export function Segmented({ value, onChange, options }) {
             role="tab"
             aria-selected={active}
             onClick={() => onChange(o.value)}
-            className={`inline-flex items-center gap-2 px-4 py-1.5 rounded-full text-sm transition-colors ${
+            className={`inline-flex flex-shrink-0 items-center gap-2 px-3 md:px-4 py-1.5 rounded-full text-sm transition-colors ${
               active ? 'bg-white text-gray-900 shadow-[inset_0_-2px_0_#3A82EA,0_1px_2px_rgb(32_31_36/.06)]' : 'text-gray-600 hover:text-gray-900'
             }`}
           >

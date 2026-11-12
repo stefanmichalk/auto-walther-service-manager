@@ -5,7 +5,8 @@ import {
   PlusCircleIcon,
   CheckCircleIcon,
   ExclamationCircleIcon,
-  XCircleIcon
+  XCircleIcon,
+  XMarkIcon
 } from '../icons'
 import { FahrzeugModal } from './FahrzeugModal'
 
@@ -159,117 +160,139 @@ export function AuslastungView({ token }) {
     setSelectedFahrzeugId(fahrzeugId)
   }
 
+  const level = (day) => {
+    if (!day || !day.aktiv) return null
+    if (day.items.length >= day.maxTermine) return 'voll'
+    if ((day.maxTermine - day.items.length) <= 1 || day.auslastung >= 75) return 'knapp'
+    return 'frei'
+  }
+  const BAR = { frei: 'bg-brand-500', knapp: 'bg-amber-500', voll: 'bg-red-600' }
+  const LABEL = { frei: 'frei', knapp: 'knapp', voll: 'voll' }
+  const pct = (day) => Math.min(100, Math.round((day.items.length / Math.max(1, day.maxTermine)) * 100))
+
   return (
-    <div className="h-full flex flex-col -mt-6 -mx-8 px-8">
+    <div className="h-full flex flex-col">
       {/* Header */}
-      <div className="flex items-center justify-between py-4">
-        <div className="flex items-center gap-3">
-          <button onClick={prevMonth} className="p-2 hover:bg-gray-100 rounded-lg text-gray-500">
-            <ChevronLeftIcon className="w-5 h-5" />
+      <div className="flex flex-wrap items-center justify-between gap-3 pb-4">
+        <div className="flex items-center gap-2">
+          <button onClick={prevMonth} className="w-9 h-9 grid place-items-center border border-gray-300 bg-white hover:border-gray-900 text-gray-900" aria-label="Vorheriger Monat">
+            <ChevronLeftIcon className="w-[18px] h-[18px]" />
           </button>
-          <h2 className="text-lg font-semibold text-gray-900 w-44 text-center">
+          <h2 className="font-display text-lg font-light text-gray-900 w-40 text-center">
             {MONATE[month]} {year}
           </h2>
-          <button onClick={nextMonth} className="p-2 hover:bg-gray-100 rounded-lg text-gray-500">
-            <ChevronRightIcon className="w-5 h-5" />
+          <button onClick={nextMonth} className="w-9 h-9 grid place-items-center border border-gray-300 bg-white hover:border-gray-900 text-gray-900" aria-label="Nächster Monat">
+            <ChevronRightIcon className="w-[18px] h-[18px]" />
           </button>
         </div>
 
-        <div className="flex items-center gap-3 text-xs text-gray-500">
-          <div className="flex items-center gap-1">
-            <div className="w-3 h-3 rounded bg-emerald-200"></div>
-            <span>&lt;75%</span>
-          </div>
-          <div className="flex items-center gap-1">
-            <div className="w-3 h-3 rounded bg-amber-200"></div>
-            <span>75-99%</span>
-          </div>
-          <div className="flex items-center gap-1">
-            <div className="w-3 h-3 rounded bg-red-200"></div>
-            <span>≥100%</span>
-          </div>
+        <div className="flex items-center gap-4 text-xs text-gray-600">
+          {['frei', 'knapp', 'voll'].map(k => (
+            <span key={k} className="inline-flex items-center gap-1.5">
+              <span className={`w-3 h-1.5 ${BAR[k]}`} />
+              {k === 'frei' ? 'unter 75 %' : k === 'knapp' ? '75–99 %' : 'ausgebucht'}
+            </span>
+          ))}
         </div>
       </div>
 
-      {/* Kalender - volle Höhe */}
-      <div className="flex-1 bg-white rounded-xl border border-gray-200 overflow-hidden flex flex-col">
-        {/* Wochentag-Header */}
-        <div className="grid grid-cols-7 border-b border-gray-100">
+      {/* Mobil: Liste der Öffnungstage */}
+      <ul className="md:hidden bg-white border border-gray-200 divide-y divide-gray-200">
+        {days.filter(d => d && d.aktiv).map(day => {
+          const l = level(day)
+          const wd = WOCHENTAGE[(new Date(year, month, day.day).getDay() + 6) % 7]
+          return (
+            <li key={day.day}>
+              <button type="button" onClick={() => setSelectedDay(day)} className={`w-full flex items-center gap-3 px-4 py-3 text-left ${day.isToday ? 'bg-brand-50' : ''}`}>
+                <div className="w-12 flex-shrink-0">
+                  <div className="eyebrow">{wd}</div>
+                  <div className={`font-display text-xl font-light ${day.isToday ? 'text-brand-700' : 'text-gray-900'}`}>{day.day}.</div>
+                </div>
+                <div className="flex-1 min-w-0">
+                  <div className="h-1.5 bg-gray-100">
+                    <div className={`h-full ${BAR[l]}`} style={{ width: `${pct(day)}%` }} />
+                  </div>
+                  <div className="mt-1.5 text-xs text-gray-600 truncate">
+                    {day.items.length > 0 ? day.items.map(it => it.kennzeichen).join(', ') : 'noch keine Termine'}
+                  </div>
+                </div>
+                <div className="text-right flex-shrink-0">
+                  <div className="text-sm tabular-nums text-gray-900">{day.items.length} / {day.maxTermine}</div>
+                  <div className="text-[11px] text-gray-500">{LABEL[l]}</div>
+                </div>
+              </button>
+            </li>
+          )
+        })}
+      </ul>
+
+      {/* Desktop: Kalender */}
+      <div className="hidden md:flex flex-1 bg-white border border-gray-200 shadow-sm overflow-hidden flex-col">
+        <div className="grid grid-cols-7 border-b border-gray-200">
           {WOCHENTAGE.map((tag, i) => (
-            <div 
-              key={tag} 
-              className={`py-2 text-center text-sm font-medium ${
-                i >= 5 ? 'text-gray-400' : 'text-gray-600'
-              }`}
-            >
-              {tag}
-            </div>
+            <div key={tag} className={`py-2.5 text-center eyebrow ${i >= 5 ? 'opacity-70' : ''}`}>{tag}</div>
           ))}
         </div>
 
-        {/* Tage - flex-1 für volle Höhe */}
-        <div className="grid grid-cols-7 flex-1">
-          {days.map((day, i) => (
-            <div
-              key={i}
-              onClick={() => day?.aktiv && setSelectedDay(day)}
-              className={`p-3 border-b border-r border-gray-100 cursor-pointer transition-all hover:brightness-95 ${getAuslastungColor(day)} ${
-                day?.isToday ? 'ring-2 ring-inset ring-emerald-500' : ''
-              }`}
-            >
-              {day && (
-                <div className="h-full flex flex-col">
-                  <div className={`text-sm font-medium ${day.isToday ? 'text-emerald-600' : 'text-gray-600'}`}>
-                    {day.day}
-                  </div>
-                  
-                  {day.aktiv && (
-                    <div className="flex-1 flex items-center justify-center">
-                      <div className="text-center">
-                        {day.items.length > 0 ? (
-                          <>
-                            {day.items.length >= day.maxTermine ? (
-                              <XCircleIcon className="w-8 h-8 mx-auto text-red-500 mb-1" />
-                            ) : (day.maxTermine - day.items.length) <= 1 || day.auslastung >= 75 ? (
-                              <ExclamationCircleIcon className="w-8 h-8 mx-auto text-amber-500 mb-1" />
-                            ) : (
-                              <CheckCircleIcon className="w-8 h-8 mx-auto text-emerald-500 mb-1" />
-                            )}
-                            <div className="text-lg font-bold text-gray-700">{day.items.length} <span className="text-sm font-normal text-gray-500">/ {day.maxTermine}</span></div>
-                          </>
-                        ) : (
-                          <PlusCircleIcon className="w-8 h-8 mx-auto text-gray-400" />
-                        )}
-                      </div>
+        <div className="grid grid-cols-7 flex-1 auto-rows-fr">
+          {days.map((day, i) => {
+            const l = level(day)
+            return (
+              <button
+                type="button"
+                key={i}
+                disabled={!day?.aktiv}
+                onClick={() => day?.aktiv && setSelectedDay(day)}
+                className={`relative text-left p-3 border-b border-r border-gray-200 transition-colors ${
+                  !day ? 'bg-gray-50' : !day.aktiv ? 'bg-gray-50 cursor-default' : 'bg-white hover:bg-gray-50'
+                } ${day?.isToday ? 'shadow-[inset_0_0_0_2px_#3A82EA]' : ''}`}
+              >
+                {day && (
+                  <div className="h-full flex flex-col">
+                    <div className="flex items-center justify-between">
+                      <span className={`text-sm ${day.isToday ? 'text-brand-700 font-semibold' : day.aktiv ? 'text-gray-900' : 'text-gray-400'}`}>{day.day}</span>
+                      {day.isToday && <span className="eyebrow !text-brand-700">heute</span>}
                     </div>
-                  )}
-                  
-                  {!day.aktiv && (
-                    <div className="text-xs text-gray-300 mt-1">geschl.</div>
-                  )}
-                </div>
-              )}
-            </div>
-          ))}
+                    {day.aktiv ? (
+                      <>
+                        <div className="flex-1 flex items-end">
+                          <div>
+                            <span className="text-[22px] font-light tracking-[-0.5px] tabular-nums text-gray-900">{day.items.length}</span>
+                            <span className="text-sm text-gray-500"> / {day.maxTermine}</span>
+                          </div>
+                        </div>
+                        <div className="mt-2 h-1.5 bg-gray-100">
+                          <div className={`h-full ${BAR[l]}`} style={{ width: `${pct(day)}%` }} />
+                        </div>
+                        <span className="sr-only">{LABEL[l]}</span>
+                      </>
+                    ) : (
+                      <div className="text-xs text-gray-400 mt-1">geschlossen</div>
+                    )}
+                  </div>
+                )}
+              </button>
+            )
+          })}
         </div>
       </div>
 
       {/* Tag-Details Modal */}
       {selectedDay && (
-        <div className="fixed inset-0 bg-black/30 flex items-center justify-center z-50 p-4" onClick={() => { setSelectedDay(null); setSearchQuery(''); setSearchResults([]); setEditKapazitaet(null); }}>
-          <div className="bg-white rounded-xl shadow-xl w-full max-w-md overflow-hidden" onClick={e => e.stopPropagation()}>
+        <div className="fixed inset-0 bg-black/40 flex items-end md:items-center justify-center z-50 md:p-4" onClick={() => { setSelectedDay(null); setSearchQuery(''); setSearchResults([]); setEditKapazitaet(null); }}>
+          <div className="bg-white shadow-lg w-full md:max-w-md overflow-hidden pb-[env(safe-area-inset-bottom)]" onClick={e => e.stopPropagation()}>
             <div className="flex items-center justify-between px-5 py-4 border-b border-gray-100">
               <div>
-                <h3 className="font-semibold text-gray-900">
+                <h3 className="font-display text-lg font-light text-gray-900">
                   {selectedDay.day}. {MONATE[month]} {year}
-                  {selectedDay.hasAusnahme && <span className="ml-2 text-xs text-amber-600">⚡ Ausnahme</span>}
+                  {selectedDay.hasAusnahme && <span className="ml-2 text-xs text-amber-600">Ausnahme</span>}
                 </h3>
                 <p className="text-sm text-gray-500">
                   {selectedDay.items.length} von {selectedDay.maxTermine} Terminen
                 </p>
               </div>
-              <button onClick={() => { setSelectedDay(null); setSearchQuery(''); setSearchResults([]); setEditKapazitaet(null); }} className="p-2 hover:bg-gray-100 rounded-lg text-gray-400">
-                ✕
+              <button onClick={() => { setSelectedDay(null); setSearchQuery(''); setSearchResults([]); setEditKapazitaet(null); }} className="w-9 h-9 grid place-items-center rounded-full hover:bg-gray-100 text-gray-600" aria-label="Schließen">
+                <XMarkIcon className="w-5 h-5" />
               </button>
             </div>
 

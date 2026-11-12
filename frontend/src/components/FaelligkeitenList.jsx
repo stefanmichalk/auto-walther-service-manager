@@ -9,6 +9,7 @@ import {
   CircleStackIcon,
   PlusIcon,
   EnvelopeIcon,
+  ArchiveBoxIcon,
   PhoneIcon,
   EllipsisVerticalIcon,
   XMarkIcon,
@@ -26,7 +27,7 @@ import { TerminForm } from './TerminForm'
 import { ImportMergeDialog } from './ImportMergeDialog'
 import * as XLSX from 'xlsx'
 
-export function FaelligkeitenList({ data, onRefresh, currentUser, token, globalSearch, onSearchChange }) {
+export function FaelligkeitenList({ data, onRefresh, currentUser, token, globalSearch, onSearchChange, onNavigate }) {
   const authHeaders = { 'Authorization': `Bearer ${token}`, 'Content-Type': 'application/json' }
   const [showForm, setShowForm] = useState(false)
   const [importing, setImporting] = useState(false)
@@ -194,6 +195,19 @@ export function FaelligkeitenList({ data, onRefresh, currentUser, token, globalS
         if (filterJahr !== 'alle' && jahr !== parseInt(filterJahr)) return false
       }
       return true
+    })
+  }
+
+  // Treffer, die wegen Austragen/Wiedervorlage nicht im Dashboard stehen
+  const getArchivTreffer = () => {
+    if (!searchTerm) return []
+    const norm = (v) => (v || '').toLowerCase().replace(/[^a-z0-9äöüß]/gi, '')
+    const t = norm(searchTerm)
+    if (!t) return []
+    return data.filter(f => {
+      const st = statusMap[f.vin] || {}
+      if (!st.ausgetragen && !st.wiedervorlage_datum) return false
+      return [f.kennzeichen, f.kunde, f.vin].some(v => norm(v).includes(t))
     })
   }
 
@@ -458,7 +472,7 @@ export function FaelligkeitenList({ data, onRefresh, currentUser, token, globalS
   return (
     <div className="flex flex-col h-full">
       {/* Stats Cards: klickbar als Schnellfilter */}
-      <div className="grid grid-cols-2 gap-4 mb-6 flex-shrink-0">
+      <div className="grid grid-cols-2 gap-3 md:gap-4 mb-4 md:mb-6 flex-shrink-0">
         {[
           { key: 'ohne_termin', label: 'Ohne Termin', color: 'text-red-600',
             count: getFilteredData(true).filter(f => !(statusMap[f.vin] || {}).service_termin).length },
@@ -472,31 +486,31 @@ export function FaelligkeitenList({ data, onRefresh, currentUser, token, globalS
               type="button"
               aria-pressed={active}
               onClick={() => setFilterStatus(active ? 'alle' : card.key)}
-              className={`relative text-left bg-white border p-5 shadow-sm transition-colors hover:shadow-md ${
+              className={`relative text-left bg-white border p-3 md:p-5 shadow-sm transition-colors hover:shadow-md ${
                 active ? 'border-brand-600 bg-brand-50' : 'border-gray-200 hover:border-gray-400'
               }`}
             >
               {active && <span className="absolute left-0 top-0 bottom-0 w-[3px] bg-brand-500" />}
               <p className="eyebrow mb-1 flex items-center justify-between">
                 {card.label}
-                <span className="normal-case tracking-normal text-[11px] text-gray-500">
+                <span className="hidden lg:inline normal-case tracking-normal text-[11px] text-gray-500">
                   {active ? 'Filter aktiv · Klick zum Aufheben' : 'Klick zum Filtern'}
                 </span>
               </p>
-              <p className={`text-[32px] font-light tracking-[-1px] tabular-nums ${card.color}`}>{card.count}</p>
+              <p className={`text-[26px] md:text-[32px] font-light tracking-[-1px] tabular-nums ${card.color}`}>{card.count}</p>
             </button>
           )
         })}
       </div>
 
       {/* Table Card */}
-      <div className="bg-white rounded-2xl border border-gray-200 shadow-sm flex-1 flex flex-col overflow-hidden">
+      <div className="md:bg-white md:border md:border-gray-200 md:shadow-sm flex-1 flex flex-col md:overflow-hidden">
         {/* Header */}
-        <div className="flex flex-wrap items-center gap-3 p-4 border-b border-gray-100">
+        <div className="flex flex-nowrap md:flex-wrap items-center gap-2 md:gap-3 p-3 md:p-4 border-b border-gray-200 overflow-x-auto">
           <select
             value={filterUrgency}
             onChange={(e) => setFilterUrgency(e.target.value)}
-            className="px-3 py-2 text-sm bg-white border border-gray-300 hover:border-gray-400 focus:border-gray-900 outline-none"
+            className="flex-shrink-0 px-3 py-2 text-sm bg-white border border-gray-300 hover:border-gray-400 focus:border-gray-900 outline-none"
           >
             <option value="alle">Alle</option>
             <option value="ueberfaellig">Überfällig</option>
@@ -507,7 +521,7 @@ export function FaelligkeitenList({ data, onRefresh, currentUser, token, globalS
           <select
             value={filterStatus}
             onChange={(e) => setFilterStatus(e.target.value)}
-            className="px-3 py-2 text-sm bg-white border border-gray-300 hover:border-gray-400 focus:border-gray-900 outline-none"
+            className="flex-shrink-0 px-3 py-2 text-sm bg-white border border-gray-300 hover:border-gray-400 focus:border-gray-900 outline-none"
           >
             <option value="alle">Alle Status</option>
             <option value="offen">Offen</option>
@@ -520,7 +534,7 @@ export function FaelligkeitenList({ data, onRefresh, currentUser, token, globalS
           <select
             value={filterType}
             onChange={(e) => setFilterType(e.target.value)}
-            className="px-3 py-2 text-sm bg-white border border-gray-300 hover:border-gray-400 focus:border-gray-900 outline-none"
+            className="flex-shrink-0 px-3 py-2 text-sm bg-white border border-gray-300 hover:border-gray-400 focus:border-gray-900 outline-none"
           >
             <option value="alle">Alle Typen</option>
             <option value="service">Service</option>
@@ -531,7 +545,7 @@ export function FaelligkeitenList({ data, onRefresh, currentUser, token, globalS
           <select
             value={filterMarke}
             onChange={(e) => setFilterMarke(e.target.value)}
-            className="px-3 py-2 text-sm bg-white border border-gray-300 hover:border-gray-400 focus:border-gray-900 outline-none"
+            className="flex-shrink-0 px-3 py-2 text-sm bg-white border border-gray-300 hover:border-gray-400 focus:border-gray-900 outline-none"
           >
             <option value="alle">Alle Marken</option>
             {[...new Set(data.map(f => f.hersteller?.toUpperCase()).filter(Boolean))].sort().map(marke => (
@@ -542,7 +556,7 @@ export function FaelligkeitenList({ data, onRefresh, currentUser, token, globalS
           <select
             value={filterMonat}
             onChange={(e) => setFilterMonat(e.target.value)}
-            className="px-3 py-2 text-sm bg-white border border-gray-300 hover:border-gray-400 focus:border-gray-900 outline-none"
+            className="flex-shrink-0 px-3 py-2 text-sm bg-white border border-gray-300 hover:border-gray-400 focus:border-gray-900 outline-none"
           >
             <option value="alle">Alle Monate</option>
             <option value="1">Januar</option>
@@ -562,7 +576,7 @@ export function FaelligkeitenList({ data, onRefresh, currentUser, token, globalS
           <select
             value={filterJahr}
             onChange={(e) => setFilterJahr(e.target.value)}
-            className="px-3 py-2 text-sm bg-white border border-gray-300 hover:border-gray-400 focus:border-gray-900 outline-none"
+            className="flex-shrink-0 px-3 py-2 text-sm bg-white border border-gray-300 hover:border-gray-400 focus:border-gray-900 outline-none"
           >
             <option value="alle">Alle Jahre</option>
             {[...new Set(data.map(f => {
@@ -623,6 +637,22 @@ export function FaelligkeitenList({ data, onRefresh, currentUser, token, globalS
           </div>
         </div>
 
+      {getArchivTreffer().length > 0 && (
+        <div className="mx-0 md:mx-4 mt-3 flex flex-wrap items-center gap-2 px-4 py-3 bg-sky-50 border-l-[3px] border-l-sky-600 text-sm text-gray-900">
+          <ArchiveBoxIcon className="w-4 h-4 text-sky-700" />
+          <span>
+            {getArchivTreffer().length === 1
+              ? <><b className="font-medium">{getArchivTreffer()[0].kennzeichen}</b> ist {statusMap[getArchivTreffer()[0].vin]?.ausgetragen ? 'ausgetragen' : 'auf Wiedervorlage'} und steht im Archiv.</>
+              : <>{getArchivTreffer().length} weitere Treffer stehen im Archiv (ausgetragen oder Wiedervorlage).</>}
+          </span>
+          {onNavigate && (
+            <button type="button" onClick={() => onNavigate('archiv')} className="underline underline-offset-4 hover:text-brand-700">
+              Im Archiv anzeigen
+            </button>
+          )}
+        </div>
+      )}
+
       {/* Termin Formular */}
       {showForm && (
         <div className="py-4 border-b border-slate-200 flex-shrink-0">
@@ -637,7 +667,7 @@ export function FaelligkeitenList({ data, onRefresh, currentUser, token, globalS
       {/* Mobile Cards / Desktop Table */}
       <div className="mt-4 flex-1 overflow-y-auto min-h-0">
         {/* Mobile: Card View */}
-        <div className="md:hidden space-y-2">
+        <div className="md:hidden space-y-2 pb-2">
           {getFilteredData()
             .sort((a, b) => {
               const parseDate = (dateStr) => {
@@ -658,43 +688,69 @@ export function FaelligkeitenList({ data, onRefresh, currentUser, token, globalS
               const isDringend = f.urgency === 'dringend'
               
               return (
-                <div 
+                <div
                   key={f.vin || i}
-                  onClick={() => openInfoModal(f)}
-                  className={`p-3 rounded-lg border cursor-pointer active:scale-[0.99] transition-all ${
-                    hasTermin ? 'bg-emerald-50 border-emerald-200' :
-                    isOverdue ? 'bg-red-50 border-red-200' :
-                    isDringend ? 'bg-amber-50 border-amber-200' :
-                    'bg-white border-gray-200'
-                  }`}
+                  className={`relative bg-white border border-gray-200 ${isOverdue && !hasTermin ? 'border-l-[3px] border-l-red-600' : isDringend && !hasTermin ? 'border-l-[3px] border-l-amber-500' : ''}`}
                 >
-                  <div className="flex items-start justify-between">
-                    <div className="flex items-center gap-2">
-                      {hasTermin ? (
-                        <CheckCircleSolid className="w-5 h-5 text-emerald-500 flex-shrink-0" />
-                      ) : isOverdue ? (
-                        <ExclamationTriangleIcon className="w-5 h-5 text-red-500 flex-shrink-0" />
-                      ) : isDringend ? (
-                        <ExclamationTriangleIcon className="w-5 h-5 text-amber-500 flex-shrink-0" />
-                      ) : (
-                        <ClockIcon className="w-5 h-5 text-gray-300 flex-shrink-0" />
-                      )}
-                      <div>
-                        <div className="font-semibold text-gray-900">{f.kennzeichen}</div>
-                        <div className="text-xs text-gray-500">{f.kunde || '–'}</div>
+                  <button type="button" onClick={() => openInfoModal(f)} className="w-full text-left px-4 pt-3 pb-2">
+                    <div className="flex items-start justify-between gap-3">
+                      <div className="min-w-0">
+                        <div className="text-[15px] font-medium text-gray-900">{f.kennzeichen}</div>
+                        <div className="text-xs text-gray-600 truncate">{f.kunde || '–'}</div>
+                      </div>
+                      <div className="text-right flex-shrink-0">
+                        <div className={`text-sm tabular-nums ${isOverdue ? 'text-red-600' : isDringend ? 'text-amber-700' : 'text-gray-900'}`}>{f.nextDate}</div>
+                        <div className="text-[11px] text-gray-500">{isOverdue ? 'überfällig' : isDringend ? 'diese Woche' : 'fällig'}</div>
                       </div>
                     </div>
-                    <div className={`text-sm font-medium tabular-nums ${
-                      isOverdue ? 'text-red-600' : isDringend ? 'text-amber-600' : 'text-gray-700'
-                    }`}>
-                      {f.nextDate}
+                    <div className="flex flex-wrap gap-x-4 gap-y-1 mt-2 text-xs text-gray-600">
+                      {f.serviceFaellig && <span>Service {f.serviceFaellig}</span>}
+                      {f.inspektionTermin && <span>Inspektion {f.inspektionTermin}</span>}
+                      {f.huTermin && <span>HU {f.huTermin}</span>}
                     </div>
+                  </button>
+                  <div className="flex items-stretch border-t border-gray-200 text-xs">
+                    <button
+                      type="button"
+                      onClick={() => handleStatusChange(f.vin, 'angeschrieben', !hasAngeschrieben)}
+                      aria-pressed={hasAngeschrieben}
+                      className={`flex-1 flex items-center justify-center gap-1.5 py-2.5 ${hasAngeschrieben ? 'bg-brand-50 text-gray-900' : 'text-gray-600'}`}
+                    >
+                      <EnvelopeIcon className={`w-4 h-4 ${hasAngeschrieben ? 'text-brand-700' : ''}`} />
+                      {hasAngeschrieben ? 'Angeschr.' : 'Anschreiben'}
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => openTerminModal(f.vin)}
+                      className={`flex-1 flex items-center justify-center gap-1.5 py-2.5 border-l border-gray-200 ${hasTermin ? 'bg-brand-50 text-gray-900' : 'text-gray-900 font-medium'}`}
+                    >
+                      <CalendarDaysIcon className={`w-4 h-4 ${hasTermin ? 'text-brand-700' : ''}`} />
+                      {hasTermin ? formatTermin(status.service_termin) : 'Termin'}
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => handleStatusChange(f.vin, 'nachgefasst', !status.nachgefasst)}
+                      aria-pressed={!!status.nachgefasst}
+                      className={`flex-1 flex items-center justify-center gap-1.5 py-2.5 border-l border-gray-200 ${status.nachgefasst ? 'bg-brand-50 text-gray-900' : 'text-gray-600'}`}
+                    >
+                      <PhoneIcon className={`w-4 h-4 ${status.nachgefasst ? 'text-brand-700' : ''}`} />
+                      Nachgef.
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setOpenMenu(openMenu === f.vin ? null : f.vin)}
+                      className="px-3 border-l border-gray-200 text-gray-600"
+                      aria-label="Weitere Aktionen"
+                    >
+                      <EllipsisVerticalIcon className="w-4 h-4" />
+                    </button>
                   </div>
-                  <div className="flex items-center gap-3 mt-2 pt-2 border-t border-gray-100 text-xs">
-                    {hasAngeschrieben && <span className="text-sky-600">✓ Angeschrieben</span>}
-                    {hasTermin && <span className="text-emerald-600">Termin: {status.service_termin}</span>}
-                    {!hasAngeschrieben && !hasTermin && <span className="text-gray-400">Noch offen</span>}
-                  </div>
+                  {openMenu === f.vin && (
+                    <div className="flex border-t border-gray-200 text-xs">
+                      <button type="button" onClick={() => { setModal({ type: 'wiedervorlage', vin: f.vin }); setOpenMenu(null) }} className="flex-1 py-2.5 text-gray-900">Wiedervorlage</button>
+                      <button type="button" onClick={() => { setModal({ type: 'austragen', vin: f.vin }); setOpenMenu(null) }} className="flex-1 py-2.5 border-l border-gray-200 text-red-600">Austragen</button>
+                    </div>
+                  )}
                 </div>
               )
             })}
@@ -934,20 +990,20 @@ export function FaelligkeitenList({ data, onRefresh, currentUser, token, globalS
       </div>
 
       {/* Footer Legend */}
-      <div className="flex items-center gap-6 pt-4 mt-4 border-t border-gray-100 text-xs text-gray-500">
-        <div className="flex items-center gap-1.5">
+      <div className="flex items-center gap-6 pt-3 mt-2 md:pt-4 md:mt-4 border-t border-gray-200 text-xs text-gray-500">
+        <div className="hidden md:flex items-center gap-1.5">
           <CheckCircleSolid className="w-4 h-4 text-emerald-500" />
           <span>Termin</span>
         </div>
-        <div className="flex items-center gap-1.5">
+        <div className="hidden md:flex items-center gap-1.5">
           <EnvelopeIcon className="w-4 h-4 text-sky-500" />
           <span>Angeschrieben</span>
         </div>
-        <div className="flex items-center gap-1.5">
+        <div className="hidden md:flex items-center gap-1.5">
           <ExclamationTriangleIcon className="w-4 h-4 text-red-500" />
           <span>Überfällig</span>
         </div>
-        <div className="flex items-center gap-1.5">
+        <div className="hidden md:flex items-center gap-1.5">
           <ExclamationTriangleIcon className="w-4 h-4 text-amber-500" />
           <span>Diese Woche</span>
         </div>
@@ -956,8 +1012,8 @@ export function FaelligkeitenList({ data, onRefresh, currentUser, token, globalS
 
       {/* Modal: Austragen */}
       {modal.type === 'austragen' && (
-        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50" onClick={() => setModal({ type: null, vin: null })}>
-          <div className="bg-white rounded-lg shadow-xl w-full max-w-md p-6" onClick={e => e.stopPropagation()}>
+        <div className="fixed inset-0 bg-black/40 flex items-end md:items-center justify-center z-50 md:p-4" onClick={() => setModal({ type: null, vin: null })}>
+          <div className="bg-white rounded-lg shadow-lg w-full md:max-w-md p-5 md:p-6 pb-[max(20px,env(safe-area-inset-bottom))]" onClick={e => e.stopPropagation()}>
             <div className="flex items-center justify-between mb-4">
               <h3 className="text-lg font-semibold text-gray-900">Fahrzeug austragen</h3>
               <button onClick={() => setModal({ type: null, vin: null })} className="text-gray-400 hover:text-gray-600">
@@ -995,8 +1051,8 @@ export function FaelligkeitenList({ data, onRefresh, currentUser, token, globalS
 
       {/* Modal: Wiedervorlage */}
       {modal.type === 'wiedervorlage' && (
-        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50" onClick={() => setModal({ type: null, vin: null })}>
-          <div className="bg-white rounded-lg shadow-xl w-full max-w-md p-6" onClick={e => e.stopPropagation()}>
+        <div className="fixed inset-0 bg-black/40 flex items-end md:items-center justify-center z-50 md:p-4" onClick={() => setModal({ type: null, vin: null })}>
+          <div className="bg-white rounded-lg shadow-lg w-full md:max-w-md p-5 md:p-6 pb-[max(20px,env(safe-area-inset-bottom))]" onClick={e => e.stopPropagation()}>
             <div className="flex items-center justify-between mb-4">
               <h3 className="text-lg font-semibold text-gray-900">Wiedervorlage</h3>
               <button onClick={() => setModal({ type: null, vin: null })} className="text-gray-400 hover:text-gray-600">
@@ -1042,8 +1098,8 @@ export function FaelligkeitenList({ data, onRefresh, currentUser, token, globalS
       )}
 
       {modal.type === 'termin' && (
-        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4" onClick={() => setModal({ type: null, vin: null })}>
-          <div className="bg-white rounded-lg shadow-xl w-full max-w-md p-6" onClick={e => e.stopPropagation()}>
+        <div className="fixed inset-0 bg-black/40 flex items-end md:items-center justify-center z-50 md:p-4" onClick={() => setModal({ type: null, vin: null })}>
+          <div className="bg-white rounded-lg shadow-lg w-full md:max-w-md p-5 md:p-6 pb-[max(20px,env(safe-area-inset-bottom))]" onClick={e => e.stopPropagation()}>
             <div className="flex items-center justify-between mb-4">
               <h3 className="text-lg font-semibold text-gray-900">Termin setzen</h3>
               <button onClick={() => setModal({ type: null, vin: null })} className="text-gray-400 hover:text-gray-600" aria-label="Dialog schließen">
@@ -1081,18 +1137,20 @@ export function FaelligkeitenList({ data, onRefresh, currentUser, token, globalS
 
       {/* Modal: Fahrzeug-Detail - Umfangreich mit Sidebar */}
       {infoModal && (
-        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4" onClick={closeInfoModal}>
-          <div className="bg-white w-full max-w-5xl h-[85vh] rounded-2xl shadow-2xl overflow-hidden flex" onClick={e => e.stopPropagation()}>
+        <div className="fixed inset-0 bg-black/40 flex items-end md:items-center justify-center z-50 md:p-4" onClick={closeInfoModal}>
+          <div className="bg-white w-full max-w-5xl h-[92dvh] md:h-[85vh] shadow-lg overflow-hidden flex flex-col md:flex-row" onClick={e => e.stopPropagation()}>
             {/* Sidebar */}
-            <div className="w-56 bg-gray-50 border-r border-gray-200 flex flex-col flex-shrink-0">
+            <div className="w-full md:w-56 bg-gray-50 border-b md:border-b-0 md:border-r border-gray-200 flex flex-col flex-shrink-0">
               {/* Header */}
-              <div className="p-5 border-b border-gray-200">
+              <div className="p-4 md:p-5 border-b border-gray-200 flex items-start justify-between gap-3">
+                <div>
                 <h3 className="font-display text-lg font-normal text-gray-900">{infoModal.kennzeichen}</h3>
                 <p className="text-xs text-gray-500 font-mono mt-1">{infoModal.vin}</p>
+                </div>
               </div>
               
               {/* Navigation */}
-              <nav className="flex-1 p-3">
+              <nav className="flex md:block md:flex-1 gap-1 p-2 md:p-3 overflow-x-auto">
                 {[
                   { id: 'uebersicht', label: 'Übersicht', Icon: ChartBarIcon },
                   { id: 'kunde', label: 'Kundendaten', Icon: UserIcon },
@@ -1103,20 +1161,17 @@ export function FaelligkeitenList({ data, onRefresh, currentUser, token, globalS
                   <button
                     key={tab.id}
                     onClick={() => setInfoModal({ ...infoModal, activeTab: tab.id })}
-                    className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-xl mb-1 text-left transition-all ${
-                      (infoModal.activeTab || 'uebersicht') === tab.id
-                        ? 'bg-emerald-100 text-emerald-800 font-medium'
-                        : 'text-gray-600 hover:bg-gray-100'
-                    }`}
+                    aria-current={(infoModal.activeTab || 'uebersicht') === tab.id ? 'page' : undefined}
+                    className="side-link flex-shrink-0 md:w-full flex items-center gap-2 md:gap-3 px-3 py-2 md:py-2.5 md:mb-1 text-left whitespace-nowrap"
                   >
-                    <tab.Icon className={`w-5 h-5 ${(infoModal.activeTab || 'uebersicht') === tab.id ? 'text-emerald-600' : 'text-gray-400'}`} />
-                    <span className="text-sm">{tab.label}</span>
+                    <tab.Icon className="w-5 h-5" />
+                    <span>{tab.label}</span>
                   </button>
                 ))}
               </nav>
               
               {/* Status Quick View */}
-              <div className="p-4 border-t border-gray-200">
+              <div className="hidden md:block p-4 border-t border-gray-200">
                 <div className="space-y-2 text-xs">
                   <div className="flex items-center justify-between">
                     <span className="text-gray-500">Status</span>
@@ -1435,8 +1490,8 @@ export function FaelligkeitenList({ data, onRefresh, currentUser, token, globalS
 
       {/* Buchungscode Modal - ausgeblendet */}
       {false && buchungsLink && (
-        <div className="fixed inset-0 bg-black/30 flex items-center justify-center z-50 p-4" onClick={() => setBuchungsLink(null)}>
-          <div className="bg-white rounded-xl shadow-xl w-full max-w-md p-6" onClick={e => e.stopPropagation()}>
+        <div className="fixed inset-0 bg-black/40 flex items-end md:items-center justify-center z-50 md:p-4" onClick={() => setBuchungsLink(null)}>
+          <div className="bg-white rounded-xl shadow-lg w-full md:max-w-md p-5 md:p-6 pb-[max(20px,env(safe-area-inset-bottom))]" onClick={e => e.stopPropagation()}>
             <h3 className="text-lg font-semibold text-gray-900 mb-2">Buchungscode erstellt</h3>
             <p className="text-sm text-gray-500 mb-4">
               Für <span className="font-medium">{buchungsLink.kennzeichen}</span> wurde ein Buchungscode erstellt.
