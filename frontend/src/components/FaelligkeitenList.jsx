@@ -583,8 +583,7 @@ export function FaelligkeitenList({ data, onRefresh, currentUser, token, globalS
               Filter zurücksetzen
             </button>
           )}
-          <span className="font-mono text-xs text-gray-500">{getFilteredData().length} Treffer</span>
-
+          
           <div className="flex items-center gap-2 ml-auto">
             <button
               onClick={() => setShowForm(!showForm)}
@@ -952,7 +951,7 @@ export function FaelligkeitenList({ data, onRefresh, currentUser, token, globalS
           <ExclamationTriangleIcon className="w-4 h-4 text-amber-500" />
           <span>Diese Woche</span>
         </div>
-        <div className="ml-auto text-gray-400">{data.length} Einträge</div>
+        <div className="ml-auto font-mono text-xs text-gray-500">{getFilteredData().length} von {data.length} Einträgen</div>
       </div>
 
       {/* Modal: Austragen */}
