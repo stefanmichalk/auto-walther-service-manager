@@ -8,6 +8,7 @@ import {
   ArchiveBoxIcon,
   UserGroupIcon,
   MagnifyingGlassIcon,
+  XMarkIcon,
   PlusIcon,
   BellIcon,
   CalendarDaysIcon
@@ -519,8 +520,18 @@ function App() {
                   setGlobalSearch(e.target.value)
                   if (activeTab === 'admin' || activeTab === 'auslastung') setActiveTab('fahrzeuge')
                 }}
-                className="w-80 h-10 pl-10 pr-4 bg-white border border-gray-300 hover:border-gray-400 text-sm placeholder:text-gray-500 focus:outline-none focus:border-gray-900 focus:ring-2 focus:ring-gray-900 transition-colors"
+                className="w-80 h-10 pl-10 pr-9 bg-white border border-gray-300 hover:border-gray-400 text-sm placeholder:text-gray-500 focus:outline-none focus:border-gray-900 focus:ring-2 focus:ring-gray-900 transition-colors"
               />
+              {globalSearch && (
+                <button
+                  type="button"
+                  onClick={() => setGlobalSearch('')}
+                  className="absolute right-2 top-1/2 -translate-y-1/2 p-1 text-gray-500 hover:text-gray-900"
+                  aria-label="Suche leeren"
+                >
+                  <XMarkIcon className="w-4 h-4" />
+                </button>
+              )}
             </div>
           </div>
           <div className="flex items-center gap-2">
@@ -550,6 +561,7 @@ function App() {
               currentUser={user?.name || user?.username} 
               token={token} 
               globalSearch={globalSearch}
+              onSearchChange={setGlobalSearch}
             />
           )}
           {activeTab === 'auslastung' && <AuslastungView token={token} />}

@@ -7,6 +7,7 @@ export function FahrzeugeListe({ token, globalSearch }) {
   useEffect(() => { if (globalSearch !== undefined) setSearchTerm(globalSearch) }, [globalSearch])
   const [selectedFahrzeug, setSelectedFahrzeug] = useState(null)
   const [historie, setHistorie] = useState([])
+  const [statusByVin, setStatusByVin] = useState({})
 
   useEffect(() => {
     if (!token) return
@@ -14,7 +15,22 @@ export function FahrzeugeListe({ token, globalSearch }) {
       .then(res => res.json())
       .then(data => setFahrzeuge(data))
       .catch(err => console.error('Fehler beim Laden:', err))
+    fetch('/api/db/fahrzeug-status', { headers: { 'Authorization': `Bearer ${token}` } })
+      .then(res => res.json())
+      .then(list => setStatusByVin(Object.fromEntries((list || []).map(s => [s.vin, s]))))
+      .catch(() => {})
   }, [token])
+
+  // Kurzer Status als Tag für die Liste
+  const statusTag = (vin) => {
+    const st = statusByVin[vin]
+    if (!st) return { text: 'offen', dot: 'bg-gray-400' }
+    if (st.ausgetragen) return { text: 'ausgetragen', dot: 'bg-red-600' }
+    if (st.wiedervorlage_datum) return { text: 'wiedervorlage', dot: 'bg-amber-500' }
+    if (st.service_termin) return { text: 'termin', dot: 'bg-brand-500' }
+    if (st.angeschrieben) return { text: 'angeschrieben', dot: 'bg-sky-500' }
+    return { text: 'offen', dot: 'bg-gray-400' }
+  }
 
   const loadHistorie = async (vin) => {
     try {
@@ -46,7 +62,7 @@ export function FahrzeugeListe({ token, globalSearch }) {
   const formatDate = (d) => {
     if (!d) return '-'
     if (d.includes('.')) return d
-    return new Date(d).toLocaleDateString('de-DE')
+    return new Date(d).toLocaleDateString('de-DE', { day: '2-digit', month: '2-digit', year: 'numeric' })
   }
 
   return (
@@ -84,6 +100,10 @@ export function FahrzeugeListe({ token, globalSearch }) {
                   <div className="font-medium text-slate-900 text-sm">{f.kennzeichen || f.vin}</div>
                   <div className="text-xs text-slate-500 mt-0.5">{f.kunde_name || '-'}</div>
                 </div>
+                <span className="ml-auto mr-2 inline-flex items-center gap-1.5 text-xs text-slate-700">
+                  <span className={`w-2 h-2 rounded-full ${statusTag(f.vin).dot}`} />
+                  {statusTag(f.vin).text}
+                </span>
                 <ChevronRightIcon className="w-4 h-4 text-slate-300" />
               </button>
             ))

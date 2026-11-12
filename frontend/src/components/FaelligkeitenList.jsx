@@ -26,7 +26,7 @@ import { TerminForm } from './TerminForm'
 import { ImportMergeDialog } from './ImportMergeDialog'
 import * as XLSX from 'xlsx'
 
-export function FaelligkeitenList({ data, onRefresh, currentUser, token, globalSearch }) {
+export function FaelligkeitenList({ data, onRefresh, currentUser, token, globalSearch, onSearchChange }) {
   const authHeaders = { 'Authorization': `Bearer ${token}`, 'Content-Type': 'application/json' }
   const [showForm, setShowForm] = useState(false)
   const [importing, setImporting] = useState(false)
@@ -151,7 +151,8 @@ export function FaelligkeitenList({ data, onRefresh, currentUser, token, globalS
   const formatTermin = (datum) => datum ? datum.split('-').reverse().join('.') : 'Termin setzen'
 
   // Filterfunktion für Export wiederverwenden
-  const getFilteredData = () => {
+  const getFilteredData = (ignoreStatusFilter = false) => {
+    const statusFilter = ignoreStatusFilter ? 'alle' : filterStatus
     return data.filter(f => {
       const status = statusMap[f.vin] || {}
       if (status.ausgetragen || status.wiedervorlage_datum) return false
@@ -167,10 +168,11 @@ export function FaelligkeitenList({ data, onRefresh, currentUser, token, globalS
         if (!matchKennzeichen && !matchKunde && !matchVin) return false
       }
       if (filterUrgency !== 'alle' && f.urgency !== filterUrgency) return false
-      if (filterStatus === 'offen' && (status.angeschrieben || status.service_termin)) return false
-      if (filterStatus === 'angeschrieben' && !status.angeschrieben) return false
-      if (filterStatus === 'angeschrieben_ohne_termin' && (!status.angeschrieben || status.service_termin)) return false
-      if (filterStatus === 'termin' && !status.service_termin) return false
+      if (statusFilter === 'offen' && (status.angeschrieben || status.service_termin)) return false
+      if (statusFilter === 'ohne_termin' && status.service_termin) return false
+      if (statusFilter === 'angeschrieben' && !status.angeschrieben) return false
+      if (statusFilter === 'angeschrieben_ohne_termin' && (!status.angeschrieben || status.service_termin)) return false
+      if (statusFilter === 'termin' && !status.service_termin) return false
       if (filterType !== 'alle') {
         const hasService = !!f.serviceFaellig || !!f.inspektionTermin
         const hasHU = !!f.huTermin
@@ -455,52 +457,46 @@ export function FaelligkeitenList({ data, onRefresh, currentUser, token, globalS
 
   return (
     <div className="flex flex-col h-full">
-      {/* Stats Cards */}
+      {/* Stats Cards: klickbar als Schnellfilter */}
       <div className="grid grid-cols-2 gap-4 mb-6 flex-shrink-0">
-        <div className="bg-white rounded-2xl border border-gray-200 p-5 shadow-sm">
-          <p className="eyebrow mb-1">Ohne Termin</p>
-          <p className="text-[32px] font-light tracking-[-1px] tabular-nums text-red-600">{getFilteredData().filter(f => {
-            const status = statusMap[f.vin] || {}
-            return !status.service_termin
-          }).length}</p>
-        </div>
-        <div className="bg-white rounded-2xl border border-gray-200 p-5 shadow-sm">
-          <p className="eyebrow mb-1">Angeschrieben ohne Termin</p>
-          <p className="text-[32px] font-light tracking-[-1px] tabular-nums text-amber-600">{getFilteredData().filter(f => {
-            const status = statusMap[f.vin] || {}
-            return status.angeschrieben && !status.service_termin
-          }).length}</p>
-        </div>
+        {[
+          { key: 'ohne_termin', label: 'Ohne Termin', color: 'text-red-600',
+            count: getFilteredData(true).filter(f => !(statusMap[f.vin] || {}).service_termin).length },
+          { key: 'angeschrieben_ohne_termin', label: 'Angeschrieben ohne Termin', color: 'text-amber-600',
+            count: getFilteredData(true).filter(f => { const st = statusMap[f.vin] || {}; return st.angeschrieben && !st.service_termin }).length },
+        ].map(card => {
+          const active = filterStatus === card.key
+          return (
+            <button
+              key={card.key}
+              type="button"
+              aria-pressed={active}
+              onClick={() => setFilterStatus(active ? 'alle' : card.key)}
+              className={`relative text-left bg-white border p-5 shadow-sm transition-colors hover:shadow-md ${
+                active ? 'border-brand-600 bg-brand-50' : 'border-gray-200 hover:border-gray-400'
+              }`}
+            >
+              {active && <span className="absolute left-0 top-0 bottom-0 w-[3px] bg-brand-500" />}
+              <p className="eyebrow mb-1 flex items-center justify-between">
+                {card.label}
+                <span className="normal-case tracking-normal text-[11px] text-gray-500">
+                  {active ? 'Filter aktiv · Klick zum Aufheben' : 'Klick zum Filtern'}
+                </span>
+              </p>
+              <p className={`text-[32px] font-light tracking-[-1px] tabular-nums ${card.color}`}>{card.count}</p>
+            </button>
+          )
+        })}
       </div>
 
       {/* Table Card */}
       <div className="bg-white rounded-2xl border border-gray-200 shadow-sm flex-1 flex flex-col overflow-hidden">
         {/* Header */}
-        <div className="flex items-center gap-3 p-4 border-b border-gray-100">
-          <div className="relative">
-            <input
-              type="text"
-              placeholder="Suche..."
-              value={searchTerm}
-              onChange={(e) => setSearchTerm(e.target.value)}
-              className="w-64 px-4 py-2 pr-8 text-sm bg-gray-50 border border-gray-200 focus:border-emerald-500 focus:ring-2 focus:ring-emerald-500/20 outline-none transition-all rounded-xl"
-            />
-            {searchTerm && (
-              <button
-                onClick={() => setSearchTerm('')}
-                className="absolute right-2 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600"
-              >
-                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-                </svg>
-              </button>
-            )}
-          </div>
-          
+        <div className="flex flex-wrap items-center gap-3 p-4 border-b border-gray-100">
           <select
             value={filterUrgency}
             onChange={(e) => setFilterUrgency(e.target.value)}
-            className="px-4 py-2 text-sm bg-gray-50 border border-gray-200 focus:border-emerald-500 outline-none rounded-xl"
+            className="px-3 py-2 text-sm bg-white border border-gray-300 hover:border-gray-400 focus:border-gray-900 outline-none"
           >
             <option value="alle">Alle</option>
             <option value="ueberfaellig">Überfällig</option>
@@ -511,10 +507,11 @@ export function FaelligkeitenList({ data, onRefresh, currentUser, token, globalS
           <select
             value={filterStatus}
             onChange={(e) => setFilterStatus(e.target.value)}
-            className="px-4 py-2 text-sm bg-gray-50 border border-gray-200 focus:border-emerald-500 outline-none rounded-xl"
+            className="px-3 py-2 text-sm bg-white border border-gray-300 hover:border-gray-400 focus:border-gray-900 outline-none"
           >
             <option value="alle">Alle Status</option>
             <option value="offen">Offen</option>
+            <option value="ohne_termin">Ohne Termin</option>
             <option value="angeschrieben">Angeschrieben</option>
             <option value="angeschrieben_ohne_termin">Angeschrieben ohne Termin</option>
             <option value="termin">Mit Termin</option>
@@ -523,7 +520,7 @@ export function FaelligkeitenList({ data, onRefresh, currentUser, token, globalS
           <select
             value={filterType}
             onChange={(e) => setFilterType(e.target.value)}
-            className="px-4 py-2 text-sm bg-gray-50 border border-gray-200 focus:border-emerald-500 outline-none rounded-xl"
+            className="px-3 py-2 text-sm bg-white border border-gray-300 hover:border-gray-400 focus:border-gray-900 outline-none"
           >
             <option value="alle">Alle Typen</option>
             <option value="service">Service</option>
@@ -534,7 +531,7 @@ export function FaelligkeitenList({ data, onRefresh, currentUser, token, globalS
           <select
             value={filterMarke}
             onChange={(e) => setFilterMarke(e.target.value)}
-            className="px-4 py-2 text-sm bg-gray-50 border border-gray-200 focus:border-emerald-500 outline-none rounded-xl"
+            className="px-3 py-2 text-sm bg-white border border-gray-300 hover:border-gray-400 focus:border-gray-900 outline-none"
           >
             <option value="alle">Alle Marken</option>
             {[...new Set(data.map(f => f.hersteller?.toUpperCase()).filter(Boolean))].sort().map(marke => (
@@ -545,7 +542,7 @@ export function FaelligkeitenList({ data, onRefresh, currentUser, token, globalS
           <select
             value={filterMonat}
             onChange={(e) => setFilterMonat(e.target.value)}
-            className="px-4 py-2 text-sm bg-gray-50 border border-gray-200 focus:border-emerald-500 outline-none rounded-xl"
+            className="px-3 py-2 text-sm bg-white border border-gray-300 hover:border-gray-400 focus:border-gray-900 outline-none"
           >
             <option value="alle">Alle Monate</option>
             <option value="1">Januar</option>
@@ -565,7 +562,7 @@ export function FaelligkeitenList({ data, onRefresh, currentUser, token, globalS
           <select
             value={filterJahr}
             onChange={(e) => setFilterJahr(e.target.value)}
-            className="px-4 py-2 text-sm bg-gray-50 border border-gray-200 focus:border-emerald-500 outline-none rounded-xl"
+            className="px-3 py-2 text-sm bg-white border border-gray-300 hover:border-gray-400 focus:border-gray-900 outline-none"
           >
             <option value="alle">Alle Jahre</option>
             {[...new Set(data.map(f => {
@@ -576,6 +573,17 @@ export function FaelligkeitenList({ data, onRefresh, currentUser, token, globalS
               <option key={jahr} value={jahr}>{jahr}</option>
             ))}
           </select>
+
+          {(filterUrgency !== 'alle' || filterStatus !== 'alle' || filterType !== 'alle' || filterMarke !== 'alle' || filterMonat !== 'alle' || filterJahr !== 'alle' || searchTerm) && (
+            <button
+              type="button"
+              onClick={() => { setFilterUrgency('alle'); setFilterStatus('alle'); setFilterType('alle'); setFilterMarke('alle'); setFilterMonat('alle'); setFilterJahr('alle'); setSearchTerm(''); onSearchChange?.('') }}
+              className="text-sm text-gray-900 underline underline-offset-4 hover:text-brand-700"
+            >
+              Filter zurücksetzen
+            </button>
+          )}
+          <span className="font-mono text-xs text-gray-500">{getFilteredData().length} Treffer</span>
 
           <div className="flex items-center gap-2 ml-auto">
             <button
@@ -703,12 +711,12 @@ export function FaelligkeitenList({ data, onRefresh, currentUser, token, globalS
               <th className="w-28 pb-3 text-left font-medium text-gray-500">Service</th>
               <th className="w-28 pb-3 text-left font-medium text-gray-500">Inspektion</th>
               <th className="w-20 pb-3 text-left font-medium text-gray-500">HU</th>
-              <th className="w-10 pb-3 text-center text-gray-400" title="Angeschrieben">
-                <EnvelopeIcon className="w-4 h-4 mx-auto" />
+              <th className="w-24 pb-3 text-center" title="Kunde wurde angeschrieben">
+                <span className="inline-flex items-center gap-1"><EnvelopeIcon className="w-3.5 h-3.5" />Angeschr.</span>
               </th>
               <th className="w-28 pb-3 text-center font-medium text-gray-500 text-xs">Termin</th>
-              <th className="w-10 pb-3 text-center text-gray-400" title="Nachgefasst">
-                <PhoneIcon className="w-4 h-4 mx-auto" />
+              <th className="w-24 pb-3 text-center" title="Telefonisch nachgefasst">
+                <span className="inline-flex items-center gap-1"><PhoneIcon className="w-3.5 h-3.5" />Nachgef.</span>
               </th>
               <th className="w-8 pb-3"></th>
             </tr>
@@ -855,10 +863,10 @@ export function FaelligkeitenList({ data, onRefresh, currentUser, token, globalS
                     <button
                       type="button"
                       onClick={() => openTerminModal(f.vin)}
-                      className={`inline-flex items-center justify-center gap-1.5 rounded-md px-2 py-1 text-xs font-medium transition-colors focus:outline-none focus:ring-2 focus:ring-gray-400 focus:ring-offset-1 ${
+                      className={`inline-flex items-center justify-center gap-1.5 whitespace-nowrap px-2 py-1 text-xs font-medium transition-colors focus:outline-none focus:ring-2 focus:ring-gray-900 ${
                         statusMap[f.vin]?.service_termin
                           ? 'text-gray-700 hover:bg-gray-100 hover:text-gray-950'
-                          : 'bg-gray-900 text-white hover:bg-gray-800'
+                          : 'border border-gray-900 bg-white text-gray-900 hover:bg-gray-100'
                       }`}
                     >
                       {statusMap[f.vin]?.service_termin ? <CalendarDaysIcon className="w-4 h-4" /> : <PlusIcon className="w-4 h-4" />}
@@ -1204,7 +1212,7 @@ export function FaelligkeitenList({ data, onRefresh, currentUser, token, globalS
                             className={`inline-flex items-center gap-1 text-sm font-medium rounded-md px-1.5 py-1 transition-colors ${
                               statusMap[infoModal.vin]?.service_termin
                                 ? 'text-gray-700 hover:bg-gray-100 hover:text-gray-950'
-                                : 'bg-gray-900 text-white hover:bg-gray-800'
+                                : 'border border-gray-900 bg-white text-gray-900 hover:bg-gray-100'
                             }`}
                           >
                             {statusMap[infoModal.vin]?.service_termin ? <CalendarDaysIcon className="w-4 h-4" /> : <PlusIcon className="w-4 h-4" />}

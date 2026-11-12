@@ -32,7 +32,7 @@ export function ArchivList({ currentUser, token, globalSearch }) {
   const formatDate = (dateStr) => {
     if (!dateStr) return '-'
     const d = new Date(dateStr)
-    return d.toLocaleDateString('de-DE')
+    return d.toLocaleDateString('de-DE', { day: '2-digit', month: '2-digit', year: 'numeric' })
   }
 
   const handleReactivate = async (vin) => {
