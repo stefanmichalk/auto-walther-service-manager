@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { LockClosedIcon, UserIcon, EyeIcon, EyeSlashIcon } from '@heroicons/react/24/outline'
+import { LockClosedIcon, UserIcon, EyeIcon, EyeSlashIcon } from '../icons'
 
 export function Login({ onLogin, setupRequired }) {
   const [username, setUsername] = useState('')

@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { XMarkIcon } from '@heroicons/react/24/outline'
+import { XMarkIcon } from '../icons'
 
 export function TerminForm({ fahrzeuge, onSave, onClose }) {
   const [formData, setFormData] = useState({

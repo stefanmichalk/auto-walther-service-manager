@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react'
-import { MagnifyingGlassIcon, ChevronRightIcon } from '@heroicons/react/24/outline'
+import { MagnifyingGlassIcon, ChevronRightIcon } from '../icons'
 
 export function FahrzeugeListe({ token, globalSearch }) {
   const [fahrzeuge, setFahrzeuge] = useState([])

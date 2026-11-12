@@ -11,7 +11,7 @@ import {
   PhoneIcon,
   EnvelopeIcon,
   CalendarIcon
-} from '@heroicons/react/24/outline'
+} from '../icons'
 
 export function ImportMergeDialog({ preview, parsedData, onClose, onImport, token }) {
   // Alle Datensätze zusammenführen für Wizard

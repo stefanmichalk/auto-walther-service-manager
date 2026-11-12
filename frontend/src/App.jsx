@@ -12,7 +12,7 @@ import {
   PlusIcon,
   BellIcon,
   CalendarDaysIcon
-} from '@heroicons/react/24/outline'
+} from './icons'
 import { DropZone } from './components/DropZone'
 import { FaelligkeitenList } from './components/FaelligkeitenList'
 import { FahrzeugeListe } from './components/FahrzeugeListe'

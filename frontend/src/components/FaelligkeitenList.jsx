@@ -20,8 +20,8 @@ import {
   TruckIcon,
   ClipboardDocumentListIcon,
   ChevronDownIcon
-} from '@heroicons/react/24/outline'
-import { CheckCircleIcon as CheckCircleSolid } from '@heroicons/react/24/solid'
+} from '../icons'
+import { CheckCircleSolid } from '../icons'
 import { TerminForm } from './TerminForm'
 import { ImportMergeDialog } from './ImportMergeDialog'
 import * as XLSX from 'xlsx'

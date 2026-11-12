@@ -6,7 +6,7 @@ import {
   CheckCircleIcon,
   ExclamationCircleIcon,
   XCircleIcon
-} from '@heroicons/react/24/outline'
+} from '../icons'
 import { FahrzeugModal } from './FahrzeugModal'
 
 // Montag = erster Tag der Woche

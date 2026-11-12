@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef } from 'react'
-import { TrashIcon, UserPlusIcon, ClipboardDocumentIcon, XMarkIcon, ArrowDownTrayIcon, ArrowUpTrayIcon } from '@heroicons/react/24/outline'
+import { TrashIcon, UserPlusIcon, ClipboardDocumentIcon, XMarkIcon, ArrowDownTrayIcon, ArrowUpTrayIcon } from '../icons'
 import { useToast } from './Toast'
 
 const WOCHENTAGE = ['Sonntag', 'Montag', 'Dienstag', 'Mittwoch', 'Donnerstag', 'Freitag', 'Samstag']

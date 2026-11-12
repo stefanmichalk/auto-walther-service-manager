@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { ArrowUpTrayIcon, CheckCircleIcon, XMarkIcon, DocumentTextIcon } from '@heroicons/react/24/outline'
+import { ArrowUpTrayIcon, CheckCircleIcon, XMarkIcon, DocumentTextIcon } from '../icons'
 
 export function DropZone({ onUpload, loading }) {
   const [isDragging, setIsDragging] = useState(false)
