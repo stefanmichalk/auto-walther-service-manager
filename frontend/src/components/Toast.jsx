@@ -1,5 +1,5 @@
 import { useState, useEffect, createContext, useContext } from 'react'
-import { CheckCircleIcon, XCircleIcon, ExclamationTriangleIcon, XMarkIcon } from '@heroicons/react/24/outline'
+import { CheckCircleIcon, XCircleIcon, ExclamationTriangleIcon, XMarkIcon } from '../icons'
 
 const ToastContext = createContext()
 

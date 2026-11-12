@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react'
-import { XMarkIcon } from '@heroicons/react/24/outline'
+import { XMarkIcon } from '../icons'
 
 export function FahrzeugModal({ fahrzeugId, token, onClose }) {
   const [fahrzeug, setFahrzeug] = useState(null)
@@ -26,7 +26,7 @@ export function FahrzeugModal({ fahrzeugId, token, onClose }) {
 
   if (loading) {
     return (
-      <div className="fixed inset-0 bg-black/30 flex items-center justify-center z-50" onClick={onClose}>
+      <div className="fixed inset-0 bg-black/40 flex items-end md:items-center justify-center z-50 md:p-4" onClick={onClose}>
         <div className="bg-white rounded-xl p-8" onClick={e => e.stopPropagation()}>
           <div className="text-gray-500">Laden...</div>
         </div>
@@ -36,7 +36,7 @@ export function FahrzeugModal({ fahrzeugId, token, onClose }) {
 
   if (!fahrzeug) {
     return (
-      <div className="fixed inset-0 bg-black/30 flex items-center justify-center z-50" onClick={onClose}>
+      <div className="fixed inset-0 bg-black/40 flex items-end md:items-center justify-center z-50 md:p-4" onClick={onClose}>
         <div className="bg-white rounded-xl p-8" onClick={e => e.stopPropagation()}>
           <div className="text-gray-500">Fahrzeug nicht gefunden</div>
         </div>
@@ -45,7 +45,7 @@ export function FahrzeugModal({ fahrzeugId, token, onClose }) {
   }
 
   return (
-    <div className="fixed inset-0 bg-black/30 flex items-center justify-center z-50 p-4" onClick={onClose}>
+    <div className="fixed inset-0 bg-black/40 flex items-end md:items-center justify-center z-50 md:p-4" onClick={onClose}>
       <div className="bg-white rounded-xl shadow-xl w-full max-w-lg overflow-hidden" onClick={e => e.stopPropagation()}>
         {/* Header */}
         <div className="flex items-center justify-between px-5 py-4 border-b border-gray-100">

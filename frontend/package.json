@@ -9,8 +9,7 @@
     "preview": "vite preview"
   },
   "dependencies": {
-    "@heroicons/react": "^2.2.0",
-    "lucide-react": "^0.263.1",
+    "@tabler/icons-react": "^3.31.0",
     "react": "^18.2.0",
     "react-dom": "^18.2.0",
     "xlsx": "^0.18.5"
