@@ -178,7 +178,7 @@ export function AuslastungView({ token }) {
           <button onClick={prevMonth} className="w-9 h-9 grid place-items-center border border-gray-300 bg-white hover:border-gray-900 text-gray-900" aria-label="Vorheriger Monat">
             <ChevronLeftIcon className="w-[18px] h-[18px]" />
           </button>
-          <h2 className="font-display text-lg font-light text-gray-900 w-40 text-center">
+          <h2 className="text-lg font-light text-gray-900 w-40 text-center">
             {MONATE[month]} {year}
           </h2>
           <button onClick={nextMonth} className="w-9 h-9 grid place-items-center border border-gray-300 bg-white hover:border-gray-900 text-gray-900" aria-label="Nächster Monat">
@@ -206,7 +206,7 @@ export function AuslastungView({ token }) {
               <button type="button" onClick={() => setSelectedDay(day)} className={`w-full flex items-center gap-3 px-4 py-3 text-left ${day.isToday ? 'bg-brand-50' : ''}`}>
                 <div className="w-12 flex-shrink-0">
                   <div className="eyebrow">{wd}</div>
-                  <div className={`font-display text-xl font-light ${day.isToday ? 'text-brand-700' : 'text-gray-900'}`}>{day.day}.</div>
+                  <div className={`text-xl font-light ${day.isToday ? 'text-brand-700' : 'text-gray-900'}`}>{day.day}.</div>
                 </div>
                 <div className="flex-1 min-w-0">
                   <div className="h-1.5 bg-gray-100">
@@ -283,7 +283,7 @@ export function AuslastungView({ token }) {
           <div className="bg-white shadow-lg w-full md:max-w-md overflow-hidden pb-[env(safe-area-inset-bottom)]" onClick={e => e.stopPropagation()}>
             <div className="flex items-center justify-between px-5 py-4 border-b border-gray-100">
               <div>
-                <h3 className="font-display text-lg font-light text-gray-900">
+                <h3 className="text-lg font-light text-gray-900">
                   {selectedDay.day}. {MONATE[month]} {year}
                   {selectedDay.hasAusnahme && <span className="ml-2 text-xs text-amber-600">Ausnahme</span>}
                 </h3>

@@ -124,7 +124,7 @@ export function FahrzeugeListe({ token, globalSearch }) {
               <ChevronLeftIcon className="w-5 h-5" />
             </button>
             <div className="flex-1 min-w-0">
-              <h3 className="font-display text-xl font-light text-slate-900">{selectedFahrzeug.kennzeichen}</h3>
+              <h3 className="text-xl font-light text-slate-900">{selectedFahrzeug.kennzeichen}</h3>
               <p className="text-sm text-slate-500">{selectedFahrzeug.kunde_name || '-'}</p>
             </div>
             <button 

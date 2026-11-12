@@ -222,7 +222,7 @@ export function AdminPanel({ token, onResetComplete }) {
     <div className="space-y-6 h-full overflow-y-auto">
       {/* Statistiken */}
       <section className="bg-white border border-slate-200 shadow-sm p-4 md:p-6">
-        <h2 className="font-display text-[17px] font-normal tracking-[-0.2px] text-slate-900 mb-4">Statistiken</h2>
+        <h2 className="text-[17px] font-normal tracking-[-0.2px] text-slate-900 mb-4">Statistiken</h2>
         {stats && (
           <div className="grid grid-cols-2 md:grid-cols-4 gap-3 md:gap-4">
             <StatBox label="Fahrzeuge" value={stats.fahrzeuge} />
@@ -237,7 +237,7 @@ export function AdminPanel({ token, onResetComplete }) {
           <p className="text-sm text-slate-900 mb-3">Löscht alle Fahrzeuge, Kunden, Termine und Status. Benutzer bleiben erhalten. Vorher ein Backup erstellen.</p>
           <button
             onClick={handleDeleteAll}
-            className="inline-flex items-center gap-2 min-h-[40px] px-4 bg-white text-red-600 border border-red-600 hover:bg-red-50 font-display font-semibold uppercase tracking-[0.1em] text-[12.5px] transition-colors"
+            className="inline-flex items-center gap-2 min-h-[40px] px-4 bg-white text-red-600 border border-red-600 hover:bg-red-50 font-semibold uppercase tracking-[0.1em] text-[12.5px] transition-colors"
           >
             <TrashIcon className="w-4 h-4" />
             Datenbank leeren
@@ -247,13 +247,13 @@ export function AdminPanel({ token, onResetComplete }) {
 
       {/* Backup & Restore */}
       <section className="bg-white border border-slate-200 shadow-sm p-4 md:p-6">
-        <h2 className="font-display text-[17px] font-normal tracking-[-0.2px] text-slate-900 mb-4">Backup & Restore</h2>
+        <h2 className="text-[17px] font-normal tracking-[-0.2px] text-slate-900 mb-4">Backup & Restore</h2>
         
         <div className="flex flex-wrap gap-3 mb-4">
           <button
             onClick={handleBackup}
             disabled={backupLoading}
-            className="inline-flex items-center gap-2 min-h-[40px] px-4 bg-brand-600 text-white hover:bg-brand-700 font-display font-semibold uppercase tracking-[0.1em] text-[12.5px] transition-colors disabled:opacity-50"
+            className="inline-flex items-center gap-2 min-h-[40px] px-4 bg-brand-600 text-white hover:bg-brand-700 font-semibold uppercase tracking-[0.1em] text-[12.5px] transition-colors disabled:opacity-50"
           >
             <ArrowDownTrayIcon className="w-4 h-4" />
             {backupLoading ? 'Läuft...' : 'Backup erstellen'}
@@ -261,7 +261,7 @@ export function AdminPanel({ token, onResetComplete }) {
           <button
             onClick={() => restoreInputRef.current?.click()}
             disabled={backupLoading}
-            className="inline-flex items-center gap-2 min-h-[40px] px-4 bg-white text-slate-900 border border-slate-900 hover:bg-slate-100 font-display font-semibold uppercase tracking-[0.1em] text-[12.5px] transition-colors disabled:opacity-50"
+            className="inline-flex items-center gap-2 min-h-[40px] px-4 bg-white text-slate-900 border border-slate-900 hover:bg-slate-100 font-semibold uppercase tracking-[0.1em] text-[12.5px] transition-colors disabled:opacity-50"
           >
             <ArrowUpTrayIcon className="w-4 h-4" />
             Backup einspielen
@@ -306,7 +306,7 @@ export function AdminPanel({ token, onResetComplete }) {
 
       {/* Kapazitäts-Einstellungen */}
       <section className="bg-white border border-slate-200 shadow-sm p-4 md:p-6">
-        <h2 className="font-display text-[17px] font-normal tracking-[-0.2px] text-slate-900 mb-4">Kapazitäten pro Wochentag</h2>
+        <h2 className="text-[17px] font-normal tracking-[-0.2px] text-slate-900 mb-4">Kapazitäten pro Wochentag</h2>
         <p className="text-sm text-slate-500 mb-4">Lege fest, wie viele Termine pro Tag möglich sind.</p>
         
         <div className="space-y-2">
@@ -345,7 +345,7 @@ export function AdminPanel({ token, onResetComplete }) {
       {/* User einladen */}
       <section className="bg-white border border-slate-200 shadow-sm p-4 md:p-6">
         <div className="flex items-center justify-between mb-4">
-          <h2 className="font-display text-[17px] font-normal tracking-[-0.2px] text-slate-900">Benutzer einladen</h2>
+          <h2 className="text-[17px] font-normal tracking-[-0.2px] text-slate-900">Benutzer einladen</h2>
           <button
             onClick={() => { setShowInviteForm(!showInviteForm); setInviteLink(null); }}
             className="inline-flex items-center gap-2 px-3 py-2 bg-primary-900 text-white text-[13px] font-medium hover:bg-primary-800 rounded-lg transition-colors"
@@ -438,7 +438,7 @@ export function AdminPanel({ token, onResetComplete }) {
 
       {/* User-Verwaltung */}
       <section className="bg-white border border-slate-200 shadow-sm p-4 md:p-6">
-        <h2 className="font-display text-[17px] font-normal tracking-[-0.2px] text-slate-900 mb-4">Benutzer</h2>
+        <h2 className="text-[17px] font-normal tracking-[-0.2px] text-slate-900 mb-4">Benutzer</h2>
         <ul className="divide-y divide-slate-200 border-t border-slate-200">
           {users.map(u => (
             <li key={u.id} className="flex flex-wrap items-center gap-x-4 gap-y-2 py-3">

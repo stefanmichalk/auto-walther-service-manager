@@ -9,7 +9,7 @@ export function CardHeader({ title, sub, right }) {
   return (
     <div className="flex flex-wrap items-center gap-3 px-5 py-4 border-b border-gray-200">
       <div className="min-w-0">
-        <h2 className="font-display text-[17px] font-normal tracking-[-0.2px] text-gray-900">{title}</h2>
+        <h2 className="text-[17px] font-normal tracking-[-0.2px] text-gray-900">{title}</h2>
         {sub && <p className="text-sm text-gray-500 mt-0.5">{sub}</p>}
       </div>
       {right && <div className="ml-auto flex items-center gap-2">{right}</div>}
@@ -67,7 +67,7 @@ export function StatusTag({ status, children }) {
 }
 
 export function Button({ variant = 'secondary', size = 'md', className = '', children, ...props }) {
-  const base = 'inline-flex items-center justify-center gap-2 font-display font-semibold uppercase tracking-[0.1em] transition-colors disabled:opacity-50 disabled:cursor-not-allowed'
+  const base = 'inline-flex items-center justify-center gap-2 font-semibold uppercase tracking-[0.1em] transition-colors disabled:opacity-50 disabled:cursor-not-allowed'
   const sizes = { md: 'min-h-[40px] px-4 text-[12.5px]', sm: 'min-h-[32px] px-3 text-[11.5px]' }
   const variants = {
     primary: 'bg-brand-600 text-white hover:bg-brand-700',
@@ -91,7 +91,7 @@ export function EmptyState({ icon: Icon, title, text, action }) {
           <Icon className="w-6 h-6 text-gray-500" />
         </div>
       )}
-      <p className="font-display text-lg font-light text-gray-900">{title}</p>
+      <p className="text-lg font-light text-gray-900">{title}</p>
       {text && <p className="text-sm text-gray-500 mt-1 max-w-sm">{text}</p>}
       {action && <div className="mt-4">{action}</div>}
     </div>

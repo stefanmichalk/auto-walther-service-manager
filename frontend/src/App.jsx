@@ -418,7 +418,7 @@ function App() {
             <div className="w-8 h-8 bg-brand-600 flex items-center justify-center">
               <TruckIcon className="w-5 h-5 text-white" />
             </div>
-            <span className="font-display text-base font-medium tracking-tight text-gray-900">ServiceManager</span>
+            <span className="text-base font-medium tracking-tight text-gray-900">ServiceManager</span>
           </div>
         </div>
 
@@ -548,7 +548,7 @@ function App() {
 
         {/* Page Header */}
         <div className="px-4 md:px-8 pt-5 pb-4 md:py-6 flex-shrink-0">
-          <h1 className="font-display text-[26px] font-light tracking-[-0.5px] text-gray-900">
+          <h1 className="text-[26px] font-light tracking-[-0.5px] text-gray-900">
             {activeTab === 'faelligkeiten' && 'Dashboard'}
             {activeTab === 'auslastung' && 'Auslastung'}
             {activeTab === 'fahrzeuge' && 'Fahrzeuge'}
@@ -587,7 +587,7 @@ function App() {
                 key={item.id}
                 onClick={() => setActiveTab(item.id)}
                 aria-current={active ? 'page' : undefined}
-                className={`relative flex-1 flex flex-col items-center gap-1 pt-2.5 pb-2 font-display text-[9.5px] font-medium uppercase tracking-[0.06em] ${active ? 'text-gray-900' : 'text-gray-500'}`}
+                className={`relative flex-1 flex flex-col items-center gap-1 pt-2.5 pb-2 text-[9.5px] font-medium uppercase tracking-[0.06em] ${active ? 'text-gray-900' : 'text-gray-500'}`}
               >
                 {active && <span className="absolute top-0 left-[28%] right-[28%] h-[2px] bg-brand-500" />}
                 <item.icon className={`w-6 h-6 ${active ? 'text-brand-700' : ''}`} />

@@ -479,7 +479,7 @@ export function FaelligkeitenList({ data, onRefresh, currentUser, token, globalS
           <div className="w-16 h-16 bg-emerald-100 rounded-2xl flex items-center justify-center mx-auto mb-6">
             <ArrowDownTrayIcon className="w-8 h-8 text-emerald-600" />
           </div>
-          <h2 className="font-display text-xl font-light text-gray-900 mb-2">Keine Fälligkeiten</h2>
+          <h2 className="text-xl font-light text-gray-900 mb-2">Keine Fälligkeiten</h2>
           <p className="text-sm text-gray-500 mb-4">
             Dateien hier ablegen oder klicken zum Auswählen
           </p>
@@ -873,7 +873,7 @@ export function FaelligkeitenList({ data, onRefresh, currentUser, token, globalS
                         type="button"
                         onClick={() => openTerminModal(f.vin)}
                         title={hasTermin ? `Termin ${formatTermin(status.service_termin)} ändern` : 'Termin eintragen'}
-                        className={hasTermin ? toggleCls(true) : 'h-9 w-[92px] inline-flex items-center justify-center gap-1.5 whitespace-nowrap border bg-white border-gray-900 text-gray-900 hover:bg-gray-100 font-display font-semibold uppercase tracking-[0.1em] text-[11.5px]'}
+                        className={hasTermin ? toggleCls(true) : 'h-9 w-[92px] inline-flex items-center justify-center gap-1.5 whitespace-nowrap border bg-white border-gray-900 text-gray-900 hover:bg-gray-100 font-semibold uppercase tracking-[0.1em] text-[11.5px]'}
                       >
                         {hasTermin ? <CalendarDaysIcon className="w-[18px] h-[18px]" /> : <><PlusIcon className="w-4 h-4" />Termin</>}
                       </button>
@@ -1070,7 +1070,7 @@ export function FaelligkeitenList({ data, onRefresh, currentUser, token, globalS
               {/* Header */}
               <div className="p-4 md:p-5 border-b border-gray-200 flex items-start justify-between gap-3">
                 <div>
-                <h3 className="font-display text-lg font-normal text-gray-900">{infoModal.kennzeichen}</h3>
+                <h3 className="text-lg font-normal text-gray-900">{infoModal.kennzeichen}</h3>
                 <p className="text-xs text-gray-500 font-mono mt-1">{infoModal.vin}</p>
                 </div>
               </div>
@@ -1148,16 +1148,16 @@ export function FaelligkeitenList({ data, onRefresh, currentUser, token, globalS
                       <div className="grid grid-cols-3 gap-4">
                         <div className="bg-gray-50 rounded-xl p-4">
                           <p className="text-xs text-gray-500 mb-1">Service</p>
-                          <p className="font-display text-lg font-normal text-gray-900">{infoModal.serviceFaellig || '–'}</p>
+                          <p className="text-lg font-normal text-gray-900">{infoModal.serviceFaellig || '–'}</p>
                           {infoModal.serviceBezeichnung && <p className="text-xs text-gray-500 mt-1">{infoModal.serviceBezeichnung}</p>}
                         </div>
                         <div className="bg-gray-50 rounded-xl p-4">
                           <p className="text-xs text-gray-500 mb-1">Inspektion</p>
-                          <p className="font-display text-lg font-normal text-gray-900">{infoModal.inspektionTermin || '–'}</p>
+                          <p className="text-lg font-normal text-gray-900">{infoModal.inspektionTermin || '–'}</p>
                         </div>
                         <div className="bg-gray-50 rounded-xl p-4">
                           <p className="text-xs text-gray-500 mb-1">HU</p>
-                          <p className="font-display text-lg font-normal text-gray-900">{infoModal.huTermin || '–'}</p>
+                          <p className="text-lg font-normal text-gray-900">{infoModal.huTermin || '–'}</p>
                         </div>
                       </div>
                     </div>
