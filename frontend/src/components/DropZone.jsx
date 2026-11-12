@@ -133,7 +133,7 @@ export function DropZone({ onUpload, loading }) {
             <div className="px-5 py-4 border-t border-gray-100 bg-gray-50">
               <button
                 onClick={closePreview}
-                className="w-full py-3 bg-emerald-600 text-white text-sm font-semibold rounded-xl hover:bg-emerald-700 transition-colors"
+                className="w-full py-3 bg-emerald-600 text-white rounded-xl hover:bg-emerald-700 transition-colors btn-caps min-h-[40px]"
               >
                 Fertig
               </button>

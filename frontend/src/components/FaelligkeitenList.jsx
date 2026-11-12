@@ -441,7 +441,7 @@ export function FaelligkeitenList({ data, onRefresh, currentUser, token, globalS
           <div className="w-16 h-16 bg-emerald-100 rounded-2xl flex items-center justify-center mx-auto mb-6">
             <ArrowDownTrayIcon className="w-8 h-8 text-emerald-600" />
           </div>
-          <h2 className="text-xl font-bold text-gray-900 mb-2">Keine Fälligkeiten</h2>
+          <h2 className="font-display text-xl font-light text-gray-900 mb-2">Keine Fälligkeiten</h2>
           <p className="text-sm text-gray-500 mb-4">
             Dateien hier ablegen oder klicken zum Auswählen
           </p>
@@ -457,16 +457,16 @@ export function FaelligkeitenList({ data, onRefresh, currentUser, token, globalS
     <div className="flex flex-col h-full">
       {/* Stats Cards */}
       <div className="grid grid-cols-2 gap-4 mb-6 flex-shrink-0">
-        <div className="bg-white rounded-2xl border border-gray-100 p-5 shadow-sm">
-          <p className="text-sm text-gray-500 mb-1">Ohne Termin</p>
-          <p className="text-2xl font-bold text-red-600">{getFilteredData().filter(f => {
+        <div className="bg-white rounded-2xl border border-gray-200 p-5 shadow-sm">
+          <p className="eyebrow mb-1">Ohne Termin</p>
+          <p className="text-[32px] font-light tracking-[-1px] tabular-nums text-red-600">{getFilteredData().filter(f => {
             const status = statusMap[f.vin] || {}
             return !status.service_termin
           }).length}</p>
         </div>
-        <div className="bg-white rounded-2xl border border-gray-100 p-5 shadow-sm">
-          <p className="text-sm text-gray-500 mb-1">Angeschrieben ohne Termin</p>
-          <p className="text-2xl font-bold text-amber-600">{getFilteredData().filter(f => {
+        <div className="bg-white rounded-2xl border border-gray-200 p-5 shadow-sm">
+          <p className="eyebrow mb-1">Angeschrieben ohne Termin</p>
+          <p className="text-[32px] font-light tracking-[-1px] tabular-nums text-amber-600">{getFilteredData().filter(f => {
             const status = statusMap[f.vin] || {}
             return status.angeschrieben && !status.service_termin
           }).length}</p>
@@ -474,7 +474,7 @@ export function FaelligkeitenList({ data, onRefresh, currentUser, token, globalS
       </div>
 
       {/* Table Card */}
-      <div className="bg-white rounded-2xl border border-gray-100 shadow-sm flex-1 flex flex-col overflow-hidden">
+      <div className="bg-white rounded-2xl border border-gray-200 shadow-sm flex-1 flex flex-col overflow-hidden">
         {/* Header */}
         <div className="flex items-center gap-3 p-4 border-b border-gray-100">
           <div className="relative">
@@ -588,7 +588,7 @@ export function FaelligkeitenList({ data, onRefresh, currentUser, token, globalS
             <div className="relative" ref={exportMenuRef}>
               <button
                 onClick={() => setShowExportMenu(!showExportMenu)}
-                className="inline-flex items-center gap-2 px-4 py-2 text-sm font-medium text-white bg-emerald-600 hover:bg-emerald-700 rounded-xl shadow-sm transition-colors"
+                className="inline-flex items-center gap-2 px-4 py-2 text-sm font-medium text-white bg-emerald-600 hover:bg-emerald-700 rounded-xl transition-colors"
               >
                 <ArrowDownTrayIcon className="w-4 h-4" />
                 Export
@@ -1080,7 +1080,7 @@ export function FaelligkeitenList({ data, onRefresh, currentUser, token, globalS
             <div className="w-56 bg-gray-50 border-r border-gray-200 flex flex-col flex-shrink-0">
               {/* Header */}
               <div className="p-5 border-b border-gray-200">
-                <h3 className="text-lg font-bold text-gray-900">{infoModal.kennzeichen}</h3>
+                <h3 className="font-display text-lg font-normal text-gray-900">{infoModal.kennzeichen}</h3>
                 <p className="text-xs text-gray-500 font-mono mt-1">{infoModal.vin}</p>
               </div>
               
@@ -1160,16 +1160,16 @@ export function FaelligkeitenList({ data, onRefresh, currentUser, token, globalS
                       <div className="grid grid-cols-3 gap-4">
                         <div className="bg-gray-50 rounded-xl p-4">
                           <p className="text-xs text-gray-500 mb-1">Service</p>
-                          <p className="text-lg font-bold text-gray-900">{infoModal.serviceFaellig || '–'}</p>
+                          <p className="font-display text-lg font-normal text-gray-900">{infoModal.serviceFaellig || '–'}</p>
                           {infoModal.serviceBezeichnung && <p className="text-xs text-gray-500 mt-1">{infoModal.serviceBezeichnung}</p>}
                         </div>
                         <div className="bg-gray-50 rounded-xl p-4">
                           <p className="text-xs text-gray-500 mb-1">Inspektion</p>
-                          <p className="text-lg font-bold text-gray-900">{infoModal.inspektionTermin || '–'}</p>
+                          <p className="font-display text-lg font-normal text-gray-900">{infoModal.inspektionTermin || '–'}</p>
                         </div>
                         <div className="bg-gray-50 rounded-xl p-4">
                           <p className="text-xs text-gray-500 mb-1">HU</p>
-                          <p className="text-lg font-bold text-gray-900">{infoModal.huTermin || '–'}</p>
+                          <p className="font-display text-lg font-normal text-gray-900">{infoModal.huTermin || '–'}</p>
                         </div>
                       </div>
                     </div>
@@ -1310,7 +1310,7 @@ export function FaelligkeitenList({ data, onRefresh, currentUser, token, globalS
                     <div className="flex justify-end">
                       <button 
                         onClick={handleSaveKunde}
-                        className="px-6 py-2.5 bg-emerald-600 text-white text-sm font-medium rounded-xl hover:bg-emerald-700 transition-colors"
+                        className="px-6 py-2.5 bg-emerald-600 text-white rounded-xl hover:bg-emerald-700 transition-colors btn-caps min-h-[40px]"
                       >
                         Speichern
                       </button>
@@ -1357,7 +1357,7 @@ export function FaelligkeitenList({ data, onRefresh, currentUser, token, globalS
                     <div className="flex justify-end pt-4 border-t border-gray-100">
                       <button
                         onClick={handleSaveFahrzeug}
-                        className="px-6 py-2.5 bg-emerald-600 text-white text-sm font-medium rounded-xl hover:bg-emerald-700 transition-colors"
+                        className="px-6 py-2.5 bg-emerald-600 text-white rounded-xl hover:bg-emerald-700 transition-colors btn-caps min-h-[40px]"
                       >
                         Speichern
                       </button>
@@ -1453,7 +1453,7 @@ export function FaelligkeitenList({ data, onRefresh, currentUser, token, globalS
                   navigator.clipboard.writeText(buchungsLink.code)
                   setBuchungsLink(null)
                 }}
-                className="flex-1 py-2 bg-emerald-600 hover:bg-emerald-700 text-white rounded-lg text-sm font-medium"
+                className="flex-1 py-2 bg-emerald-600 hover:bg-emerald-700 text-white rounded-lg btn-caps min-h-[40px]"
               >
                 Code kopieren
               </button>

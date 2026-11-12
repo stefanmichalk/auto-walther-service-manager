@@ -104,7 +104,7 @@ export function ImportMergeDialog({ preview, parsedData, onClose, onImport, toke
                 {currentRecord.type === 'neu' ? 'NEU' : 'AKTUALISIERUNG'}
               </div>
               <div>
-                <h3 className="text-lg font-bold text-gray-900">{currentRecord.kennzeichen || 'Unbekannt'}</h3>
+                <h3 className="font-display text-lg font-normal text-gray-900">{currentRecord.kennzeichen || 'Unbekannt'}</h3>
                 <p className="text-xs text-gray-500 font-mono">{currentRecord.vin}</p>
               </div>
             </div>
@@ -138,7 +138,7 @@ export function ImportMergeDialog({ preview, parsedData, onClose, onImport, toke
                 <div className="bg-gray-50 rounded-xl p-4 space-y-3">
                   <div>
                     <label className="text-xs text-gray-400">Kennzeichen</label>
-                    <p className="text-lg font-bold text-gray-900">{currentRecord.kennzeichen || '–'}</p>
+                    <p className="font-display text-lg font-normal text-gray-900">{currentRecord.kennzeichen || '–'}</p>
                   </div>
                   <div>
                     <label className="text-xs text-gray-400">Fahrgestellnummer (VIN)</label>
@@ -319,7 +319,7 @@ export function ImportMergeDialog({ preview, parsedData, onClose, onImport, toke
         {/* Header */}
         <div className="flex items-center justify-between px-6 py-4 border-b border-gray-200">
           <div>
-            <h3 className="text-lg font-bold text-gray-900">Import-Zusammenfassung</h3>
+            <h3 className="font-display text-lg font-normal text-gray-900">Import-Zusammenfassung</h3>
             <p className="text-sm text-gray-500">{selectedCount} von {allRecords.length} Datensätzen ausgewählt</p>
           </div>
           <button onClick={onClose} className="p-2 text-gray-400 hover:text-gray-600 hover:bg-gray-100 rounded-lg">

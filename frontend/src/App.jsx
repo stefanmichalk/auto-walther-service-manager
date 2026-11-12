@@ -410,38 +410,33 @@ function App() {
   return (
     <div className="h-screen bg-gray-50 flex overflow-hidden">
       {/* Sidebar - Clean & Modern */}
-      <aside className="w-64 bg-white border-r border-gray-200 flex flex-col flex-shrink-0 shadow-sm">
+      <aside className="w-64 bg-white border-r border-gray-200 flex flex-col flex-shrink-0">
         {/* Logo */}
         <div className="h-16 px-6 flex items-center border-b border-gray-100">
           <div className="flex items-center gap-2">
-            <div className="w-8 h-8 bg-emerald-500 rounded-lg flex items-center justify-center">
+            <div className="w-8 h-8 bg-brand-600 flex items-center justify-center">
               <TruckIcon className="w-5 h-5 text-white" />
             </div>
-            <span className="text-lg font-bold text-gray-900">ServiceManager</span>
+            <span className="font-display text-base font-medium tracking-tight text-gray-900">ServiceManager</span>
           </div>
         </div>
 
         {/* Navigation */}
         <nav className="flex-1 px-4 py-6 overflow-y-auto">
           {/* MENU Section */}
-          <p className="text-[11px] font-semibold text-gray-400 uppercase tracking-wider mb-3 px-3">Menu</p>
+          <p className="eyebrow mb-3 px-3">Menü</p>
           
           {navItems.map(item => (
             <button
               key={item.id}
               onClick={() => setActiveTab(item.id)}
-              className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-xl mb-1 transition-all ${
-                activeTab === item.id 
-                  ? 'bg-emerald-50 text-emerald-700 font-medium' 
-                  : 'text-gray-600 hover:bg-gray-50'
-              }`}
+              aria-current={activeTab === item.id ? 'page' : undefined}
+              className="side-link w-full flex items-center gap-3 pl-[14px] pr-3 py-[11px] mb-1 transition-colors"
             >
-              <item.icon className={`w-5 h-5 ${activeTab === item.id ? 'text-emerald-600' : 'text-gray-400'}`} />
-              <span className="text-sm">{item.label}</span>
+              <item.icon className="w-5 h-5" />
+              <span>{item.label}</span>
               {item.count > 0 && (
-                <span className={`ml-auto text-xs px-2 py-0.5 rounded-full ${
-                  activeTab === item.id ? 'bg-emerald-100 text-emerald-700' : 'bg-gray-100 text-gray-500'
-                }`}>
+                <span className="ml-auto font-mono text-[11px] normal-case tracking-normal px-2 py-0.5 rounded-full border border-gray-300 bg-white text-gray-700">
                   {item.count}
                 </span>
               )}
@@ -451,17 +446,14 @@ function App() {
           {user?.role === 'admin' && (
             <>
               {/* ADMIN Section */}
-              <p className="text-[11px] font-semibold text-gray-400 uppercase tracking-wider mt-8 mb-3 px-3">Admin</p>
+              <p className="eyebrow mt-8 mb-3 px-3">Admin</p>
               <button
                 onClick={() => setActiveTab('admin')}
-                className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-xl mb-1 transition-all ${
-                  activeTab === 'admin' 
-                    ? 'bg-emerald-50 text-emerald-700 font-medium' 
-                    : 'text-gray-600 hover:bg-gray-50'
-                }`}
+                aria-current={activeTab === 'admin' ? 'page' : undefined}
+                className="side-link w-full flex items-center gap-3 pl-[14px] pr-3 py-[11px] mb-1 transition-colors"
               >
-                <Cog6ToothIcon className={`w-5 h-5 ${activeTab === 'admin' ? 'text-emerald-600' : 'text-gray-400'}`} />
-                <span className="text-sm">Einstellungen</span>
+                <Cog6ToothIcon className="w-5 h-5" />
+                <span>Einstellungen</span>
               </button>
             </>
           )}
@@ -473,7 +465,7 @@ function App() {
           {uploadedFiles.length > 0 && (
             <button
               onClick={openImportWizard}
-              className="w-full mt-2 px-3 py-2 text-sm font-medium text-white bg-emerald-600 hover:bg-emerald-700 rounded-xl transition-colors"
+              className="w-full mt-2 px-3 py-2 text-white bg-emerald-600 hover:bg-emerald-700 rounded-xl transition-colors btn-caps min-h-[40px]"
             >
               Import-Wizard öffnen ({uploadedFiles.length} Dateien)
             </button>
@@ -483,8 +475,8 @@ function App() {
         {/* User */}
         <div className="px-4 py-4 border-t border-gray-100">
           <div className="flex items-center gap-3">
-            <div className="w-10 h-10 rounded-full bg-gradient-to-br from-emerald-400 to-emerald-600 flex items-center justify-center">
-              <span className="text-white font-semibold text-sm">
+            <div className="w-10 h-10 rounded-full bg-gray-900 flex items-center justify-center">
+              <span className="text-white font-mono text-sm">
                 {(user?.name || user?.username || '?').charAt(0).toUpperCase()}
               </span>
             </div>
@@ -505,7 +497,7 @@ function App() {
         {/* Version */}
         {appVersion && (
           <div className="px-4 py-2 border-t border-gray-100">
-            <p className="text-[10px] text-gray-400 text-center">
+            <p className="font-mono text-[10px] text-gray-500 text-center">
               v{appVersion.version}{appVersion.buildDate ? ` · ${appVersion.buildDate}` : ''}
             </p>
           </div>
@@ -527,7 +519,7 @@ function App() {
                   setGlobalSearch(e.target.value)
                   if (activeTab === 'admin' || activeTab === 'auslastung') setActiveTab('fahrzeuge')
                 }}
-                className="w-80 h-10 pl-10 pr-4 bg-gray-50 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:border-transparent"
+                className="w-80 h-10 pl-10 pr-4 bg-white border border-gray-300 hover:border-gray-400 text-sm placeholder:text-gray-500 focus:outline-none focus:border-gray-900 focus:ring-2 focus:ring-gray-900 transition-colors"
               />
             </div>
           </div>
@@ -540,7 +532,7 @@ function App() {
 
         {/* Page Header */}
         <div className="px-8 py-6 flex-shrink-0">
-          <h1 className="text-2xl font-bold text-gray-900">
+          <h1 className="font-display text-[26px] font-light tracking-[-0.5px] text-gray-900">
             {activeTab === 'faelligkeiten' && 'Dashboard'}
             {activeTab === 'auslastung' && 'Auslastung'}
             {activeTab === 'fahrzeuge' && 'Fahrzeuge'}
