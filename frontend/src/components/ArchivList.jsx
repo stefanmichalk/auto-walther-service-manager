@@ -6,7 +6,14 @@ import {
   ClockIcon
 } from '@heroicons/react/24/outline'
 
-export function ArchivList({ currentUser, token }) {
+export function ArchivList({ currentUser, token, globalSearch }) {
+  const clean = (v) => (v || '').toLowerCase().replace(/[^a-z0-9äöüß]/g, '')
+  const matches = (item) => {
+    const t = clean(globalSearch)
+    if (!t) return true
+    return [item.vin, item.kennzeichen, item.kunde_name, item.austragen_grund, item.wiedervorlage_grund]
+      .some(v => clean(v).includes(t))
+  }
   const [archivData, setArchivData] = useState({ ausgetragen: [], wiedervorlage: [] })
   const [activeSection, setActiveSection] = useState('ausgetragen')
 
@@ -30,25 +37,20 @@ export function ArchivList({ currentUser, token }) {
 
   const handleReactivate = async (vin) => {
     try {
-      const current = archivData.ausgetragen.find(s => s.vin === vin) || 
-                      archivData.wiedervorlage.find(s => s.vin === vin)
-      await fetch('/api/db/fahrzeug-status', {
+      const res0 = await fetch('/api/db/fahrzeug-status', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: { 'Authorization': `Bearer ${token}`, 'Content-Type': 'application/json' },
         body: JSON.stringify({
           vin,
-          angeschrieben: current?.angeschrieben || false,
-          service_termin: current?.service_termin || '',
-          nachgefasst: current?.nachgefasst || false,
           ausgetragen: false,
           austragen_grund: null,
           wiedervorlage_datum: null,
-          wiedervorlage_grund: null,
-          user_name: currentUser || 'System'
+          wiedervorlage_grund: null
         })
       })
+      if (!res0.ok) throw new Error(`Reaktivieren fehlgeschlagen (${res0.status})`)
       // Reload
-      const res = await fetch('/api/db/fahrzeug-status')
+      const res = await fetch('/api/db/fahrzeug-status', { headers: { 'Authorization': `Bearer ${token}` } })
       const statusList = await res.json()
       const ausgetragen = statusList.filter(s => s.ausgetragen)
       const wiedervorlage = statusList.filter(s => s.wiedervorlage_datum && !s.ausgetragen)
@@ -103,17 +105,19 @@ export function ArchivList({ currentUser, token }) {
             <table className="w-full text-sm">
               <thead>
                 <tr className="border-b border-gray-200">
-                  <th className="pb-3 text-left font-medium text-gray-500">VIN</th>
+                  <th className="pb-3 text-left font-medium text-gray-500">Fahrzeug</th>
                   <th className="pb-3 text-left font-medium text-gray-500">Grund</th>
                   <th className="pb-3 text-left font-medium text-gray-500">Datum</th>
                   <th className="pb-3 text-right font-medium text-gray-500">Aktion</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-gray-100">
-                {archivData.ausgetragen.map(item => (
+                {archivData.ausgetragen.filter(matches).map(item => (
                   <tr key={item.vin} className="hover:bg-gray-50">
                     <td className="py-3 font-mono text-xs text-gray-600">
-                      {item.vin?.substring(0, 17) || '-'}
+                      <div className="font-sans text-sm font-medium text-gray-900">{item.kennzeichen || '-'}</div>
+                      <div className="font-sans text-gray-500">{item.kunde_name || ''}</div>
+                      <div>{item.vin?.substring(0, 17) || '-'}</div>
                     </td>
                     <td className="py-3 text-gray-900">
                       {item.austragen_grund || '-'}
@@ -147,20 +151,22 @@ export function ArchivList({ currentUser, token }) {
             <table className="w-full text-sm">
               <thead>
                 <tr className="border-b border-gray-200">
-                  <th className="pb-3 text-left font-medium text-gray-500">VIN</th>
+                  <th className="pb-3 text-left font-medium text-gray-500">Fahrzeug</th>
                   <th className="pb-3 text-left font-medium text-gray-500">Wiedervorlage am</th>
                   <th className="pb-3 text-left font-medium text-gray-500">Grund</th>
                   <th className="pb-3 text-right font-medium text-gray-500">Aktion</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-gray-100">
-                {archivData.wiedervorlage.map(item => {
+                {archivData.wiedervorlage.filter(matches).map(item => {
                   const isToday = item.wiedervorlage_datum === new Date().toISOString().split('T')[0]
                   const isPast = new Date(item.wiedervorlage_datum) < new Date()
                   return (
                     <tr key={item.vin} className={`hover:bg-gray-50 ${isPast ? 'bg-amber-50' : ''}`}>
                       <td className="py-3 font-mono text-xs text-gray-600">
-                        {item.vin?.substring(0, 17) || '-'}
+                        <div className="font-sans text-sm font-medium text-gray-900">{item.kennzeichen || '-'}</div>
+                      <div className="font-sans text-gray-500">{item.kunde_name || ''}</div>
+                      <div>{item.vin?.substring(0, 17) || '-'}</div>
                       </td>
                       <td className={`py-3 font-medium ${isPast ? 'text-amber-600' : 'text-gray-900'}`}>
                         {formatDate(item.wiedervorlage_datum)}

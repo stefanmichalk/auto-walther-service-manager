@@ -550,7 +550,12 @@ const stmts = {
   
   getFahrzeugStatus: db.prepare(`SELECT * FROM fahrzeug_status WHERE vin = ?`),
   
-  getAllFahrzeugStatus: db.prepare(`SELECT * FROM fahrzeug_status`),
+  getAllFahrzeugStatus: db.prepare(`
+    SELECT fs.*, f.kennzeichen, k.name AS kunde_name
+    FROM fahrzeug_status fs
+    LEFT JOIN fahrzeuge f ON f.vin = fs.vin
+    LEFT JOIN kunden k ON k.id = f.kunde_id
+  `),
 
   // Audit-Log
   insertAuditLog: db.prepare(`

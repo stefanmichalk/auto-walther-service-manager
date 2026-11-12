@@ -31,6 +31,7 @@ function App() {
   const [termine, setTermine] = useState([])
   const [faelligkeiten, setFaelligkeiten] = useState([])
   const [activeTab, setActiveTab] = useState('faelligkeiten')
+  const [globalSearch, setGlobalSearch] = useState('')
   const [loading, setLoading] = useState(false)
   
   // Auth State
@@ -520,7 +521,12 @@ function App() {
               <MagnifyingGlassIcon className="w-5 h-5 text-gray-400 absolute left-3 top-1/2 -translate-y-1/2" />
               <input 
                 type="text" 
-                placeholder="Suche..." 
+                placeholder="Suche (Kennzeichen, Kunde, VIN)..." 
+                value={globalSearch}
+                onChange={e => {
+                  setGlobalSearch(e.target.value)
+                  if (activeTab === 'admin' || activeTab === 'auslastung') setActiveTab('fahrzeuge')
+                }}
                 className="w-80 h-10 pl-10 pr-4 bg-gray-50 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:border-transparent"
               />
             </div>
@@ -551,11 +557,12 @@ function App() {
               onRefresh={fetchData} 
               currentUser={user?.name || user?.username} 
               token={token} 
+              globalSearch={globalSearch}
             />
           )}
           {activeTab === 'auslastung' && <AuslastungView token={token} />}
-          {activeTab === 'fahrzeuge' && <FahrzeugeListe token={token} />}
-          {activeTab === 'archiv' && <ArchivList currentUser={user?.name || user?.username} token={token} />}
+          {activeTab === 'fahrzeuge' && <FahrzeugeListe token={token} globalSearch={globalSearch} />}
+          {activeTab === 'archiv' && <ArchivList currentUser={user?.name || user?.username} token={token} globalSearch={globalSearch} />}
           {activeTab === 'admin' && user?.role === 'admin' && <AdminPanel token={token} onResetComplete={fetchData} />}
         </main>
       </div>

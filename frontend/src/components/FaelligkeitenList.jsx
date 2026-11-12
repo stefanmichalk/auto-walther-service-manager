@@ -26,7 +26,7 @@ import { TerminForm } from './TerminForm'
 import { ImportMergeDialog } from './ImportMergeDialog'
 import * as XLSX from 'xlsx'
 
-export function FaelligkeitenList({ data, onRefresh, currentUser, token }) {
+export function FaelligkeitenList({ data, onRefresh, currentUser, token, globalSearch }) {
   const authHeaders = { 'Authorization': `Bearer ${token}`, 'Content-Type': 'application/json' }
   const [showForm, setShowForm] = useState(false)
   const [importing, setImporting] = useState(false)
@@ -37,7 +37,8 @@ export function FaelligkeitenList({ data, onRefresh, currentUser, token }) {
   const [infoModal, setInfoModal] = useState(null)
   const [auditLog, setAuditLog] = useState([])
   const [termine, setTermine] = useState([])
-  const [searchTerm, setSearchTerm] = useState('')
+  const [searchTerm, setSearchTerm] = useState(globalSearch || '')
+  useEffect(() => { if (globalSearch !== undefined) setSearchTerm(globalSearch) }, [globalSearch])
   const [filterUrgency, setFilterUrgency] = useState('alle')
   const [filterStatus, setFilterStatus] = useState('alle')
   const [filterType, setFilterType] = useState('alle')
@@ -128,7 +129,7 @@ export function FaelligkeitenList({ data, onRefresh, currentUser, token }) {
       await fetch('/api/db/fahrzeug-status', {
         method: 'POST',
         headers: { 'Authorization': `Bearer ${token}`, 'Content-Type': 'application/json' },
-        body: JSON.stringify({ vin, ...updated, user_name: currentUser || 'Unbekannt' })
+        body: JSON.stringify({ vin, [field]: value })
       })
     } catch (err) {
       console.error('Status update error:', err)
@@ -251,11 +252,7 @@ export function FaelligkeitenList({ data, onRefresh, currentUser, token }) {
         body: JSON.stringify({ 
           vin: modal.vin, 
           ausgetragen: true, 
-          austragen_grund: modalData.grund,
-          angeschrieben: statusMap[modal.vin]?.angeschrieben || false,
-          service_termin: statusMap[modal.vin]?.service_termin || '',
-          nachgefasst: statusMap[modal.vin]?.nachgefasst || false,
-          user_name: currentUser || 'Unbekannt'
+          austragen_grund: modalData.grund
         })
       })
       setStatusMap(prev => ({ ...prev, [modal.vin]: { ...prev[modal.vin], ausgetragen: true } }))
@@ -275,11 +272,7 @@ export function FaelligkeitenList({ data, onRefresh, currentUser, token }) {
         body: JSON.stringify({ 
           vin: modal.vin, 
           wiedervorlage_datum: modalData.datum,
-          wiedervorlage_grund: modalData.grund,
-          angeschrieben: statusMap[modal.vin]?.angeschrieben || false,
-          service_termin: statusMap[modal.vin]?.service_termin || '',
-          nachgefasst: statusMap[modal.vin]?.nachgefasst || false,
-          user_name: currentUser || 'Unbekannt'
+          wiedervorlage_grund: modalData.grund
         })
       })
       setStatusMap(prev => ({ ...prev, [modal.vin]: { ...prev[modal.vin], wiedervorlage_datum: modalData.datum } }))
