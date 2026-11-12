@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react'
-import { LockClosedIcon, CheckCircleIcon, ExclamationCircleIcon } from '@heroicons/react/24/outline'
+import { LockClosedIcon, CheckCircleIcon, ExclamationCircleIcon } from '../icons'
 
 export function InvitePage({ token, onComplete }) {
   const [invite, setInvite] = useState(null)
@@ -75,7 +75,7 @@ export function InvitePage({ token, onComplete }) {
       <div className="min-h-screen bg-gray-50 flex items-center justify-center p-4">
         <div className="bg-white p-8 rounded-xl shadow-lg max-w-md w-full text-center">
           <CheckCircleIcon className="w-16 h-16 text-green-500 mx-auto mb-4" />
-          <h1 className="text-2xl font-bold text-gray-900 mb-2">Account erstellt!</h1>
+          <h1 className="text-[32px] font-light tracking-[-1px] tabular-nums text-gray-900 mb-2">Account erstellt!</h1>
           <p className="text-gray-600">Sie werden zur Anmeldung weitergeleitet...</p>
         </div>
       </div>
@@ -87,7 +87,7 @@ export function InvitePage({ token, onComplete }) {
       <div className="min-h-screen bg-gray-50 flex items-center justify-center p-4">
         <div className="bg-white p-8 rounded-xl shadow-lg max-w-md w-full text-center">
           <ExclamationCircleIcon className="w-16 h-16 text-red-500 mx-auto mb-4" />
-          <h1 className="text-2xl font-bold text-gray-900 mb-2">Einladung ungültig</h1>
+          <h1 className="text-[32px] font-light tracking-[-1px] tabular-nums text-gray-900 mb-2">Einladung ungültig</h1>
           <p className="text-gray-600 mb-4">{error}</p>
           <button
             onClick={onComplete}
@@ -107,7 +107,7 @@ export function InvitePage({ token, onComplete }) {
           <div className="w-16 h-16 bg-gray-900 rounded-full flex items-center justify-center mx-auto mb-4">
             <LockClosedIcon className="w-8 h-8 text-white" />
           </div>
-          <h1 className="text-2xl font-bold text-gray-900">Willkommen, {invite?.name}!</h1>
+          <h1 className="text-[32px] font-light tracking-[-1px] tabular-nums text-gray-900">Willkommen, {invite?.name}!</h1>
           <p className="text-gray-600 mt-2">Bitte vergeben Sie ein Passwort für Ihren Account.</p>
         </div>
 

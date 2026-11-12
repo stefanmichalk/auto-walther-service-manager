@@ -1,190 +1,171 @@
-import { useState, useEffect } from 'react'
-import { 
-  TrashIcon, 
-  ArrowPathIcon,
-  CalendarIcon,
-  ClockIcon
-} from '@heroicons/react/24/outline'
+import { useState, useEffect, useMemo } from 'react'
+import { ArchiveBoxIcon, CalendarIcon, MagnifyingGlassIcon } from '../icons'
+import { Card, Segmented, StatusTag, Button, EmptyState, VehicleCell, toDE } from './ui'
 
-export function ArchivList({ currentUser, token }) {
-  const [archivData, setArchivData] = useState({ ausgetragen: [], wiedervorlage: [] })
+const clean = (v) => (v || '').toLowerCase().replace(/[^a-z0-9äöüß]/g, '')
+const todayISO = () => new Date().toISOString().slice(0, 10)
+
+export function ArchivList({ currentUser, token, globalSearch }) {
+  const [statusList, setStatusList] = useState([])
+  const [loading, setLoading] = useState(true)
   const [activeSection, setActiveSection] = useState('ausgetragen')
+  const [busyVin, setBusyVin] = useState(null)
 
-  useEffect(() => {
-    if (!token) return
-    fetch('/api/db/fahrzeug-status', { headers: { 'Authorization': `Bearer ${token}` } })
-      .then(res => res.json())
-      .then(statusList => {
-        const ausgetragen = statusList.filter(s => s.ausgetragen)
-        const wiedervorlage = statusList.filter(s => s.wiedervorlage_datum && !s.ausgetragen)
-        setArchivData({ ausgetragen, wiedervorlage })
-      })
-      .catch(err => console.error('Load archive error:', err))
-  }, [])
-
-  const formatDate = (dateStr) => {
-    if (!dateStr) return '-'
-    const d = new Date(dateStr)
-    return d.toLocaleDateString('de-DE')
-  }
-
-  const handleReactivate = async (vin) => {
+  const load = async () => {
     try {
-      const current = archivData.ausgetragen.find(s => s.vin === vin) || 
-                      archivData.wiedervorlage.find(s => s.vin === vin)
-      await fetch('/api/db/fahrzeug-status', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          vin,
-          angeschrieben: current?.angeschrieben || false,
-          service_termin: current?.service_termin || '',
-          nachgefasst: current?.nachgefasst || false,
-          ausgetragen: false,
-          austragen_grund: null,
-          wiedervorlage_datum: null,
-          wiedervorlage_grund: null,
-          user_name: currentUser || 'System'
-        })
-      })
-      // Reload
-      const res = await fetch('/api/db/fahrzeug-status')
-      const statusList = await res.json()
-      const ausgetragen = statusList.filter(s => s.ausgetragen)
-      const wiedervorlage = statusList.filter(s => s.wiedervorlage_datum && !s.ausgetragen)
-      setArchivData({ ausgetragen, wiedervorlage })
+      const res = await fetch('/api/db/fahrzeug-status', { headers: { 'Authorization': `Bearer ${token}` } })
+      setStatusList(await res.json())
     } catch (err) {
-      console.error('Reactivate error:', err)
+      console.error('Load archive error:', err)
+    } finally {
+      setLoading(false)
     }
   }
 
+  useEffect(() => { if (token) load() }, [token])
+
+  const matches = (item) => {
+    const t = clean(globalSearch)
+    if (!t) return true
+    return [item.vin, item.kennzeichen, item.kunde_name, item.austragen_grund, item.wiedervorlage_grund]
+      .some(v => clean(v).includes(t))
+  }
+
+  const ausgetragen = useMemo(() => statusList
+    .filter(s => s.ausgetragen && matches(s))
+    .sort((a, b) => (b.updated_at || '').localeCompare(a.updated_at || '')), [statusList, globalSearch])
+
+  const wiedervorlage = useMemo(() => statusList
+    .filter(s => s.wiedervorlage_datum && !s.ausgetragen && matches(s))
+    .sort((a, b) => (a.wiedervorlage_datum || '').localeCompare(b.wiedervorlage_datum || '')), [statusList, globalSearch])
+
+  // Bei Suche automatisch in den Bereich mit Treffern springen
+  useEffect(() => {
+    if (!globalSearch) return
+    if (activeSection === 'ausgetragen' && ausgetragen.length === 0 && wiedervorlage.length > 0) setActiveSection('wiedervorlage')
+    if (activeSection === 'wiedervorlage' && wiedervorlage.length === 0 && ausgetragen.length > 0) setActiveSection('ausgetragen')
+  }, [globalSearch, ausgetragen.length, wiedervorlage.length])
+
+  const handleReactivate = async (vin) => {
+    setBusyVin(vin)
+    try {
+      const res = await fetch('/api/db/fahrzeug-status', {
+        method: 'POST',
+        headers: { 'Authorization': `Bearer ${token}`, 'Content-Type': 'application/json' },
+        body: JSON.stringify({ vin, ausgetragen: false, austragen_grund: null, wiedervorlage_datum: null, wiedervorlage_grund: null })
+      })
+      if (!res.ok) throw new Error(`Reaktivieren fehlgeschlagen (${res.status})`)
+      await load()
+    } catch (err) {
+      console.error('Reactivate error:', err)
+      alert(err.message)
+    } finally {
+      setBusyVin(null)
+    }
+  }
+
+  const rows = activeSection === 'ausgetragen' ? ausgetragen : wiedervorlage
+  const today = todayISO()
+
   return (
-    <div>
-      {/* Section Tabs */}
-      <div className="flex gap-4 mb-4">
-        <button
-          onClick={() => setActiveSection('ausgetragen')}
-          className={`flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
-            activeSection === 'ausgetragen'
-              ? 'bg-red-100 text-red-700'
-              : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
-          }`}
-        >
-          <TrashIcon className="w-4 h-4" />
-          Ausgetragen
-          <span className="ml-1 px-1.5 py-0.5 bg-white rounded text-xs">
-            {archivData.ausgetragen.length}
+    <Card className="flex flex-col">
+      <div className="flex flex-wrap items-center gap-3 px-3 md:px-5 py-3 md:py-4 border-b border-gray-200">
+        <Segmented
+          value={activeSection}
+          onChange={setActiveSection}
+          options={[
+            { value: 'ausgetragen', label: 'Ausgetragen', icon: ArchiveBoxIcon, count: ausgetragen.length },
+            { value: 'wiedervorlage', label: 'Wiedervorlage', icon: CalendarIcon, count: wiedervorlage.length },
+          ]}
+        />
+        <p className="hidden md:block text-sm text-gray-500">
+          {activeSection === 'ausgetragen'
+            ? 'Fahrzeuge, die nicht mehr angeschrieben werden (verkauft, verzogen, andere Werkstatt …)'
+            : 'Fahrzeuge, die zu einem späteren Datum wieder ins Dashboard kommen'}
+        </p>
+        {globalSearch && (
+          <span className="ml-auto inline-flex items-center gap-1.5 text-sm text-gray-700">
+            <MagnifyingGlassIcon className="w-4 h-4" />
+            Suche: „{globalSearch}“
           </span>
-        </button>
-        <button
-          onClick={() => setActiveSection('wiedervorlage')}
-          className={`flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
-            activeSection === 'wiedervorlage'
-              ? 'bg-amber-100 text-amber-700'
-              : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
-          }`}
-        >
-          <CalendarIcon className="w-4 h-4" />
-          Wiedervorlage
-          <span className="ml-1 px-1.5 py-0.5 bg-white rounded text-xs">
-            {archivData.wiedervorlage.length}
-          </span>
-        </button>
+        )}
       </div>
 
-      {/* Content */}
-      {activeSection === 'ausgetragen' && (
-        <div>
-          {archivData.ausgetragen.length === 0 ? (
-            <div className="text-center py-12 text-gray-400">
-              Keine ausgetragenen Fahrzeuge
-            </div>
-          ) : (
-            <table className="w-full text-sm">
-              <thead>
-                <tr className="border-b border-gray-200">
-                  <th className="pb-3 text-left font-medium text-gray-500">VIN</th>
-                  <th className="pb-3 text-left font-medium text-gray-500">Grund</th>
-                  <th className="pb-3 text-left font-medium text-gray-500">Datum</th>
-                  <th className="pb-3 text-right font-medium text-gray-500">Aktion</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-gray-100">
-                {archivData.ausgetragen.map(item => (
-                  <tr key={item.vin} className="hover:bg-gray-50">
-                    <td className="py-3 font-mono text-xs text-gray-600">
-                      {item.vin?.substring(0, 17) || '-'}
+      {loading ? (
+        <div className="p-8 text-sm text-gray-500">Lade Archiv …</div>
+      ) : rows.length === 0 ? (
+        <EmptyState
+          icon={globalSearch ? MagnifyingGlassIcon : (activeSection === 'ausgetragen' ? ArchiveBoxIcon : CalendarIcon)}
+          title={globalSearch ? 'Keine Treffer im Archiv' : (activeSection === 'ausgetragen' ? 'Keine ausgetragenen Fahrzeuge' : 'Keine Wiedervorlagen')}
+          text={globalSearch ? 'Das Fahrzeug ist nicht ausgetragen und hat keine Wiedervorlage. Schau im Dashboard oder unter Fahrzeuge.' : null}
+        />
+      ) : (
+        <>
+        {/* Mobil: Karten */}
+        <ul className="md:hidden divide-y divide-gray-200">
+          {rows.map(item => {
+            const isWv = activeSection === 'wiedervorlage'
+            const due = isWv && item.wiedervorlage_datum <= today
+            const isToday = isWv && item.wiedervorlage_datum === today
+            return (
+              <li key={item.vin} className="px-4 py-3">
+                <div className="flex items-start justify-between gap-3">
+                  <VehicleCell kennzeichen={item.kennzeichen} kunde={item.kunde_name} vin={item.vin} />
+                  {isWv
+                    ? <StatusTag status={isToday ? 'heute' : due ? 'überfällig' : 'wiedervorlage'}>{toDE(item.wiedervorlage_datum)}</StatusTag>
+                    : <span className="text-xs text-gray-500 tabular-nums">{toDE(item.updated_at)}</span>}
+                </div>
+                <p className="mt-2 text-sm text-gray-900">{(isWv ? item.wiedervorlage_grund : item.austragen_grund) || <span className="text-gray-500">kein Grund angegeben</span>}</p>
+                <div className="mt-2">
+                  <Button size="sm" variant="secondary" disabled={busyVin === item.vin} onClick={() => handleReactivate(item.vin)}>
+                    {isWv ? 'Zurück ins Dashboard' : 'Reaktivieren'}
+                  </Button>
+                </div>
+              </li>
+            )
+          })}
+        </ul>
+        <div className="hidden md:block overflow-x-auto">
+          <table className="w-full text-sm">
+            <thead>
+              <tr className="border-b border-gray-200">
+                <th className="py-3 pl-5 pr-3 text-left">Fahrzeug</th>
+                <th className="py-3 px-3 text-left">Status</th>
+                <th className="py-3 px-3 text-left">Grund</th>
+                <th className="py-3 px-3 text-left">{activeSection === 'ausgetragen' ? 'Ausgetragen am' : 'Wiedervorlage am'}</th>
+                <th className="py-3 pl-3 pr-5 text-right"><span className="sr-only">Aktion</span></th>
+              </tr>
+            </thead>
+            <tbody>
+              {rows.map(item => {
+                const isWv = activeSection === 'wiedervorlage'
+                const due = isWv && item.wiedervorlage_datum <= today
+                const isToday = isWv && item.wiedervorlage_datum === today
+                return (
+                  <tr key={item.vin} className="border-b border-gray-200 last:border-0 hover:bg-gray-50 transition-colors">
+                    <td className="py-3 pl-5 pr-3 align-top"><VehicleCell kennzeichen={item.kennzeichen} kunde={item.kunde_name} vin={item.vin} /></td>
+                    <td className="py-3 px-3 align-top">
+                      {isWv
+                        ? <StatusTag status={isToday ? 'heute' : due ? 'überfällig' : 'wiedervorlage'}>{isToday ? 'heute fällig' : due ? 'fällig' : 'geplant'}</StatusTag>
+                        : <StatusTag status="ausgetragen" />}
                     </td>
-                    <td className="py-3 text-gray-900">
-                      {item.austragen_grund || '-'}
+                    <td className="py-3 px-3 align-top text-gray-900 max-w-md">{(isWv ? item.wiedervorlage_grund : item.austragen_grund) || <span className="text-gray-500">kein Grund angegeben</span>}</td>
+                    <td className={`py-3 px-3 align-top tabular-nums ${due ? 'text-red-600' : 'text-gray-700'}`}>
+                      {toDE(isWv ? item.wiedervorlage_datum : item.updated_at)}
                     </td>
-                    <td className="py-3 text-gray-500">
-                      {formatDate(item.updated_at)}
-                    </td>
-                    <td className="py-3 text-right">
-                      <button
-                        onClick={() => handleReactivate(item.vin)}
-                        className="text-sm text-blue-600 hover:text-blue-800"
-                      >
-                        Reaktivieren
-                      </button>
+                    <td className="py-3 pl-3 pr-5 align-top text-right">
+                      <Button size="sm" variant="secondary" disabled={busyVin === item.vin} onClick={() => handleReactivate(item.vin)}>
+                        {isWv ? 'Zurück ins Dashboard' : 'Reaktivieren'}
+                      </Button>
                     </td>
                   </tr>
-                ))}
-              </tbody>
-            </table>
-          )}
+                )
+              })}
+            </tbody>
+          </table>
         </div>
+        </>
       )}
-
-      {activeSection === 'wiedervorlage' && (
-        <div>
-          {archivData.wiedervorlage.length === 0 ? (
-            <div className="text-center py-12 text-gray-400">
-              Keine Wiedervorlagen
-            </div>
-          ) : (
-            <table className="w-full text-sm">
-              <thead>
-                <tr className="border-b border-gray-200">
-                  <th className="pb-3 text-left font-medium text-gray-500">VIN</th>
-                  <th className="pb-3 text-left font-medium text-gray-500">Wiedervorlage am</th>
-                  <th className="pb-3 text-left font-medium text-gray-500">Grund</th>
-                  <th className="pb-3 text-right font-medium text-gray-500">Aktion</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-gray-100">
-                {archivData.wiedervorlage.map(item => {
-                  const isToday = item.wiedervorlage_datum === new Date().toISOString().split('T')[0]
-                  const isPast = new Date(item.wiedervorlage_datum) < new Date()
-                  return (
-                    <tr key={item.vin} className={`hover:bg-gray-50 ${isPast ? 'bg-amber-50' : ''}`}>
-                      <td className="py-3 font-mono text-xs text-gray-600">
-                        {item.vin?.substring(0, 17) || '-'}
-                      </td>
-                      <td className={`py-3 font-medium ${isPast ? 'text-amber-600' : 'text-gray-900'}`}>
-                        {formatDate(item.wiedervorlage_datum)}
-                        {isToday && <span className="ml-2 text-xs text-amber-600">(Heute!)</span>}
-                      </td>
-                      <td className="py-3 text-gray-600">
-                        {item.wiedervorlage_grund || '-'}
-                      </td>
-                      <td className="py-3 text-right">
-                        <button
-                          onClick={() => handleReactivate(item.vin)}
-                          className="text-sm text-blue-600 hover:text-blue-800"
-                        >
-                          Erledigt
-                        </button>
-                      </td>
-                    </tr>
-                  )
-                })}
-              </tbody>
-            </table>
-          )}
-        </div>
-      )}
-    </div>
+    </Card>
   )
 }

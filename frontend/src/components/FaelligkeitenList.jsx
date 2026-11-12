@@ -1,4 +1,5 @@
 import { useState, useEffect, useRef } from 'react'
+import { StatusTag } from './ui'
 import { 
   CheckCircleIcon, 
   ExclamationTriangleIcon, 
@@ -9,6 +10,7 @@ import {
   CircleStackIcon,
   PlusIcon,
   EnvelopeIcon,
+  ArchiveBoxIcon,
   PhoneIcon,
   EllipsisVerticalIcon,
   XMarkIcon,
@@ -19,14 +21,16 @@ import {
   UserIcon,
   TruckIcon,
   ClipboardDocumentListIcon,
-  ChevronDownIcon
-} from '@heroicons/react/24/outline'
-import { CheckCircleIcon as CheckCircleSolid } from '@heroicons/react/24/solid'
+  ChevronDownIcon,
+  DocumentTextIcon,
+  CalendarPlusIcon
+} from '../icons'
+import { CheckCircleSolid } from '../icons'
 import { TerminForm } from './TerminForm'
 import { ImportMergeDialog } from './ImportMergeDialog'
 import * as XLSX from 'xlsx'
 
-export function FaelligkeitenList({ data, onRefresh, currentUser, token }) {
+export function FaelligkeitenList({ data, onRefresh, currentUser, token, globalSearch, onSearchChange, onNavigate }) {
   const authHeaders = { 'Authorization': `Bearer ${token}`, 'Content-Type': 'application/json' }
   const [showForm, setShowForm] = useState(false)
   const [importing, setImporting] = useState(false)
@@ -37,7 +41,8 @@ export function FaelligkeitenList({ data, onRefresh, currentUser, token }) {
   const [infoModal, setInfoModal] = useState(null)
   const [auditLog, setAuditLog] = useState([])
   const [termine, setTermine] = useState([])
-  const [searchTerm, setSearchTerm] = useState('')
+  const [searchTerm, setSearchTerm] = useState(globalSearch || '')
+  useEffect(() => { if (globalSearch !== undefined) setSearchTerm(globalSearch) }, [globalSearch])
   const [filterUrgency, setFilterUrgency] = useState('alle')
   const [filterStatus, setFilterStatus] = useState('alle')
   const [filterType, setFilterType] = useState('alle')
@@ -128,7 +133,7 @@ export function FaelligkeitenList({ data, onRefresh, currentUser, token }) {
       await fetch('/api/db/fahrzeug-status', {
         method: 'POST',
         headers: { 'Authorization': `Bearer ${token}`, 'Content-Type': 'application/json' },
-        body: JSON.stringify({ vin, ...updated, user_name: currentUser || 'Unbekannt' })
+        body: JSON.stringify({ vin, [field]: value })
       })
     } catch (err) {
       console.error('Status update error:', err)
@@ -147,10 +152,31 @@ export function FaelligkeitenList({ data, onRefresh, currentUser, token }) {
     setModalData({ grund: '', datum: '' })
   }
 
+  const parseDE = (d) => {
+    if (!d) return new Date(9999, 11, 31)
+    if (d.includes('.')) { const [dd, mm, yy] = d.split('.'); return new Date(yy, mm - 1, dd) }
+    return new Date(d)
+  }
+  const daysFromToday = (d) => {
+    if (!d) return null
+    const t = new Date(); t.setHours(0, 0, 0, 0)
+    const x = parseDE(d); if (isNaN(x)) return null
+    return Math.round((x - t) / 86400000)
+  }
+
+  const relTage = (d) => {
+    if (d === null) return ''
+    if (d === 0) return 'heute'
+    const n = Math.abs(d)
+    const t = n >= 60 ? `${Math.round(n / 30.4)} Mon.` : `${n} ${n === 1 ? 'Tag' : 'Tagen'}`
+    return d < 0 ? `seit ${t}` : `in ${t}`
+  }
+
   const formatTermin = (datum) => datum ? datum.split('-').reverse().join('.') : 'Termin setzen'
 
   // Filterfunktion für Export wiederverwenden
-  const getFilteredData = () => {
+  const getFilteredData = (ignoreStatusFilter = false) => {
+    const statusFilter = ignoreStatusFilter ? 'alle' : filterStatus
     return data.filter(f => {
       const status = statusMap[f.vin] || {}
       if (status.ausgetragen || status.wiedervorlage_datum) return false
@@ -166,10 +192,11 @@ export function FaelligkeitenList({ data, onRefresh, currentUser, token }) {
         if (!matchKennzeichen && !matchKunde && !matchVin) return false
       }
       if (filterUrgency !== 'alle' && f.urgency !== filterUrgency) return false
-      if (filterStatus === 'offen' && (status.angeschrieben || status.service_termin)) return false
-      if (filterStatus === 'angeschrieben' && !status.angeschrieben) return false
-      if (filterStatus === 'angeschrieben_ohne_termin' && (!status.angeschrieben || status.service_termin)) return false
-      if (filterStatus === 'termin' && !status.service_termin) return false
+      if (statusFilter === 'offen' && (status.angeschrieben || status.service_termin)) return false
+      if (statusFilter === 'ohne_termin' && status.service_termin) return false
+      if (statusFilter === 'angeschrieben' && !status.angeschrieben) return false
+      if (statusFilter === 'angeschrieben_ohne_termin' && (!status.angeschrieben || status.service_termin)) return false
+      if (statusFilter === 'termin' && !status.service_termin) return false
       if (filterType !== 'alle') {
         const hasService = !!f.serviceFaellig || !!f.inspektionTermin
         const hasHU = !!f.huTermin
@@ -191,6 +218,19 @@ export function FaelligkeitenList({ data, onRefresh, currentUser, token }) {
         if (filterJahr !== 'alle' && jahr !== parseInt(filterJahr)) return false
       }
       return true
+    })
+  }
+
+  // Treffer, die wegen Austragen/Wiedervorlage nicht im Dashboard stehen
+  const getArchivTreffer = () => {
+    if (!searchTerm) return []
+    const norm = (v) => (v || '').toLowerCase().replace(/[^a-z0-9äöüß]/gi, '')
+    const t = norm(searchTerm)
+    if (!t) return []
+    return data.filter(f => {
+      const st = statusMap[f.vin] || {}
+      if (!st.ausgetragen && !st.wiedervorlage_datum) return false
+      return [f.kennzeichen, f.kunde, f.vin].some(v => norm(v).includes(t))
     })
   }
 
@@ -251,11 +291,7 @@ export function FaelligkeitenList({ data, onRefresh, currentUser, token }) {
         body: JSON.stringify({ 
           vin: modal.vin, 
           ausgetragen: true, 
-          austragen_grund: modalData.grund,
-          angeschrieben: statusMap[modal.vin]?.angeschrieben || false,
-          service_termin: statusMap[modal.vin]?.service_termin || '',
-          nachgefasst: statusMap[modal.vin]?.nachgefasst || false,
-          user_name: currentUser || 'Unbekannt'
+          austragen_grund: modalData.grund
         })
       })
       setStatusMap(prev => ({ ...prev, [modal.vin]: { ...prev[modal.vin], ausgetragen: true } }))
@@ -275,11 +311,7 @@ export function FaelligkeitenList({ data, onRefresh, currentUser, token }) {
         body: JSON.stringify({ 
           vin: modal.vin, 
           wiedervorlage_datum: modalData.datum,
-          wiedervorlage_grund: modalData.grund,
-          angeschrieben: statusMap[modal.vin]?.angeschrieben || false,
-          service_termin: statusMap[modal.vin]?.service_termin || '',
-          nachgefasst: statusMap[modal.vin]?.nachgefasst || false,
-          user_name: currentUser || 'Unbekannt'
+          wiedervorlage_grund: modalData.grund
         })
       })
       setStatusMap(prev => ({ ...prev, [modal.vin]: { ...prev[modal.vin], wiedervorlage_datum: modalData.datum } }))
@@ -448,7 +480,7 @@ export function FaelligkeitenList({ data, onRefresh, currentUser, token }) {
           <div className="w-16 h-16 bg-emerald-100 rounded-2xl flex items-center justify-center mx-auto mb-6">
             <ArrowDownTrayIcon className="w-8 h-8 text-emerald-600" />
           </div>
-          <h2 className="text-xl font-bold text-gray-900 mb-2">Keine Fälligkeiten</h2>
+          <h2 className="text-xl font-light text-gray-900 mb-2">Keine Fälligkeiten</h2>
           <p className="text-sm text-gray-500 mb-4">
             Dateien hier ablegen oder klicken zum Auswählen
           </p>
@@ -462,52 +494,46 @@ export function FaelligkeitenList({ data, onRefresh, currentUser, token }) {
 
   return (
     <div className="flex flex-col h-full">
-      {/* Stats Cards */}
-      <div className="grid grid-cols-2 gap-4 mb-6 flex-shrink-0">
-        <div className="bg-white rounded-2xl border border-gray-100 p-5 shadow-sm">
-          <p className="text-sm text-gray-500 mb-1">Ohne Termin</p>
-          <p className="text-2xl font-bold text-red-600">{getFilteredData().filter(f => {
-            const status = statusMap[f.vin] || {}
-            return !status.service_termin
-          }).length}</p>
-        </div>
-        <div className="bg-white rounded-2xl border border-gray-100 p-5 shadow-sm">
-          <p className="text-sm text-gray-500 mb-1">Angeschrieben ohne Termin</p>
-          <p className="text-2xl font-bold text-amber-600">{getFilteredData().filter(f => {
-            const status = statusMap[f.vin] || {}
-            return status.angeschrieben && !status.service_termin
-          }).length}</p>
-        </div>
+      {/* Stats Cards: klickbar als Schnellfilter */}
+      <div className="grid grid-cols-2 gap-3 md:gap-4 mb-4 md:mb-6 flex-shrink-0">
+        {[
+          { key: 'ohne_termin', label: 'Ohne Termin', color: 'text-red-600',
+            count: getFilteredData(true).filter(f => !(statusMap[f.vin] || {}).service_termin).length },
+          { key: 'angeschrieben_ohne_termin', label: 'Angeschrieben ohne Termin', color: 'text-amber-600',
+            count: getFilteredData(true).filter(f => { const st = statusMap[f.vin] || {}; return st.angeschrieben && !st.service_termin }).length },
+        ].map(card => {
+          const active = filterStatus === card.key
+          return (
+            <button
+              key={card.key}
+              type="button"
+              aria-pressed={active}
+              onClick={() => setFilterStatus(active ? 'alle' : card.key)}
+              className={`relative text-left bg-white border p-3 md:p-5 shadow-sm transition-colors hover:shadow-md ${
+                active ? 'border-brand-600 bg-brand-50' : 'border-gray-200 hover:border-gray-400'
+              }`}
+            >
+              {active && <span className="absolute left-0 top-0 bottom-0 w-[3px] bg-brand-500" />}
+              <p className="eyebrow mb-1 flex items-center justify-between">
+                {card.label}
+                <span className="hidden lg:inline normal-case tracking-normal text-[11px] text-gray-500">
+                  {active ? 'Filter aktiv · Klick zum Aufheben' : 'Klick zum Filtern'}
+                </span>
+              </p>
+              <p className={`text-[26px] md:text-[32px] font-light tracking-[-1px] tabular-nums ${card.color}`}>{card.count}</p>
+            </button>
+          )
+        })}
       </div>
 
       {/* Table Card */}
-      <div className="bg-white rounded-2xl border border-gray-100 shadow-sm flex-1 flex flex-col overflow-hidden">
+      <div className="md:bg-white md:border md:border-gray-200 md:shadow-sm flex-1 flex flex-col md:overflow-hidden">
         {/* Header */}
-        <div className="flex items-center gap-3 p-4 border-b border-gray-100">
-          <div className="relative">
-            <input
-              type="text"
-              placeholder="Suche..."
-              value={searchTerm}
-              onChange={(e) => setSearchTerm(e.target.value)}
-              className="w-64 px-4 py-2 pr-8 text-sm bg-gray-50 border border-gray-200 focus:border-emerald-500 focus:ring-2 focus:ring-emerald-500/20 outline-none transition-all rounded-xl"
-            />
-            {searchTerm && (
-              <button
-                onClick={() => setSearchTerm('')}
-                className="absolute right-2 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600"
-              >
-                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-                </svg>
-              </button>
-            )}
-          </div>
-          
+        <div className="flex flex-nowrap md:flex-wrap items-center gap-2 md:gap-3 p-3 md:p-4 border-b border-gray-200 overflow-x-auto">
           <select
             value={filterUrgency}
             onChange={(e) => setFilterUrgency(e.target.value)}
-            className="px-4 py-2 text-sm bg-gray-50 border border-gray-200 focus:border-emerald-500 outline-none rounded-xl"
+            className="field flex-shrink-0"
           >
             <option value="alle">Alle</option>
             <option value="ueberfaellig">Überfällig</option>
@@ -518,10 +544,11 @@ export function FaelligkeitenList({ data, onRefresh, currentUser, token }) {
           <select
             value={filterStatus}
             onChange={(e) => setFilterStatus(e.target.value)}
-            className="px-4 py-2 text-sm bg-gray-50 border border-gray-200 focus:border-emerald-500 outline-none rounded-xl"
+            className="field flex-shrink-0"
           >
             <option value="alle">Alle Status</option>
             <option value="offen">Offen</option>
+            <option value="ohne_termin">Ohne Termin</option>
             <option value="angeschrieben">Angeschrieben</option>
             <option value="angeschrieben_ohne_termin">Angeschrieben ohne Termin</option>
             <option value="termin">Mit Termin</option>
@@ -530,7 +557,7 @@ export function FaelligkeitenList({ data, onRefresh, currentUser, token }) {
           <select
             value={filterType}
             onChange={(e) => setFilterType(e.target.value)}
-            className="px-4 py-2 text-sm bg-gray-50 border border-gray-200 focus:border-emerald-500 outline-none rounded-xl"
+            className="field flex-shrink-0"
           >
             <option value="alle">Alle Typen</option>
             <option value="service">Service</option>
@@ -541,7 +568,7 @@ export function FaelligkeitenList({ data, onRefresh, currentUser, token }) {
           <select
             value={filterMarke}
             onChange={(e) => setFilterMarke(e.target.value)}
-            className="px-4 py-2 text-sm bg-gray-50 border border-gray-200 focus:border-emerald-500 outline-none rounded-xl"
+            className="field flex-shrink-0"
           >
             <option value="alle">Alle Marken</option>
             {[...new Set(data.map(f => f.hersteller?.toUpperCase()).filter(Boolean))].sort().map(marke => (
@@ -552,7 +579,7 @@ export function FaelligkeitenList({ data, onRefresh, currentUser, token }) {
           <select
             value={filterMonat}
             onChange={(e) => setFilterMonat(e.target.value)}
-            className="px-4 py-2 text-sm bg-gray-50 border border-gray-200 focus:border-emerald-500 outline-none rounded-xl"
+            className="field flex-shrink-0"
           >
             <option value="alle">Alle Monate</option>
             <option value="1">Januar</option>
@@ -572,7 +599,7 @@ export function FaelligkeitenList({ data, onRefresh, currentUser, token }) {
           <select
             value={filterJahr}
             onChange={(e) => setFilterJahr(e.target.value)}
-            className="px-4 py-2 text-sm bg-gray-50 border border-gray-200 focus:border-emerald-500 outline-none rounded-xl"
+            className="field flex-shrink-0"
           >
             <option value="alle">Alle Jahre</option>
             {[...new Set(data.map(f => {
@@ -584,6 +611,16 @@ export function FaelligkeitenList({ data, onRefresh, currentUser, token }) {
             ))}
           </select>
 
+          {(filterUrgency !== 'alle' || filterStatus !== 'alle' || filterType !== 'alle' || filterMarke !== 'alle' || filterMonat !== 'alle' || filterJahr !== 'alle' || searchTerm) && (
+            <button
+              type="button"
+              onClick={() => { setFilterUrgency('alle'); setFilterStatus('alle'); setFilterType('alle'); setFilterMarke('alle'); setFilterMonat('alle'); setFilterJahr('alle'); setSearchTerm(''); onSearchChange?.('') }}
+              className="text-sm text-gray-900 underline underline-offset-4 hover:text-brand-700"
+            >
+              Filter zurücksetzen
+            </button>
+          )}
+          
           <div className="flex items-center gap-2 ml-auto">
             <button
               onClick={() => setShowForm(!showForm)}
@@ -595,7 +632,7 @@ export function FaelligkeitenList({ data, onRefresh, currentUser, token }) {
             <div className="relative" ref={exportMenuRef}>
               <button
                 onClick={() => setShowExportMenu(!showExportMenu)}
-                className="inline-flex items-center gap-2 px-4 py-2 text-sm font-medium text-white bg-emerald-600 hover:bg-emerald-700 rounded-xl shadow-sm transition-colors"
+                className="inline-flex items-center gap-2 px-4 py-2 text-sm font-medium text-white bg-emerald-600 hover:bg-emerald-700 rounded-xl transition-colors"
               >
                 <ArrowDownTrayIcon className="w-4 h-4" />
                 Export
@@ -623,6 +660,22 @@ export function FaelligkeitenList({ data, onRefresh, currentUser, token }) {
           </div>
         </div>
 
+      {getArchivTreffer().length > 0 && (
+        <div className="mx-0 md:mx-4 mt-3 flex flex-wrap items-center gap-2 px-4 py-3 bg-sky-50 border-l-[3px] border-l-sky-600 text-sm text-gray-900">
+          <ArchiveBoxIcon className="w-4 h-4 text-sky-700" />
+          <span>
+            {getArchivTreffer().length === 1
+              ? <><b className="font-medium">{getArchivTreffer()[0].kennzeichen}</b> ist {statusMap[getArchivTreffer()[0].vin]?.ausgetragen ? 'ausgetragen' : 'auf Wiedervorlage'} und steht im Archiv.</>
+              : <>{getArchivTreffer().length} weitere Treffer stehen im Archiv (ausgetragen oder Wiedervorlage).</>}
+          </span>
+          {onNavigate && (
+            <button type="button" onClick={() => onNavigate('archiv')} className="underline underline-offset-4 hover:text-brand-700">
+              Im Archiv anzeigen
+            </button>
+          )}
+        </div>
+      )}
+
       {/* Termin Formular */}
       {showForm && (
         <div className="py-4 border-b border-slate-200 flex-shrink-0">
@@ -637,7 +690,7 @@ export function FaelligkeitenList({ data, onRefresh, currentUser, token }) {
       {/* Mobile Cards / Desktop Table */}
       <div className="mt-4 flex-1 overflow-y-auto min-h-0">
         {/* Mobile: Card View */}
-        <div className="md:hidden space-y-2">
+        <div className="md:hidden space-y-2 pb-2">
           {getFilteredData()
             .sort((a, b) => {
               const parseDate = (dateStr) => {
@@ -658,269 +711,216 @@ export function FaelligkeitenList({ data, onRefresh, currentUser, token }) {
               const isDringend = f.urgency === 'dringend'
               
               return (
-                <div 
+                <div
                   key={f.vin || i}
-                  onClick={() => openInfoModal(f)}
-                  className={`p-3 rounded-lg border cursor-pointer active:scale-[0.99] transition-all ${
-                    hasTermin ? 'bg-emerald-50 border-emerald-200' :
-                    isOverdue ? 'bg-red-50 border-red-200' :
-                    isDringend ? 'bg-amber-50 border-amber-200' :
-                    'bg-white border-gray-200'
-                  }`}
+                  className={`relative bg-white border border-gray-200 ${isOverdue && !hasTermin ? 'border-l-[3px] border-l-red-600' : isDringend && !hasTermin ? 'border-l-[3px] border-l-amber-500' : ''}`}
                 >
-                  <div className="flex items-start justify-between">
-                    <div className="flex items-center gap-2">
-                      {hasTermin ? (
-                        <CheckCircleSolid className="w-5 h-5 text-emerald-500 flex-shrink-0" />
-                      ) : isOverdue ? (
-                        <ExclamationTriangleIcon className="w-5 h-5 text-red-500 flex-shrink-0" />
-                      ) : isDringend ? (
-                        <ExclamationTriangleIcon className="w-5 h-5 text-amber-500 flex-shrink-0" />
-                      ) : (
-                        <ClockIcon className="w-5 h-5 text-gray-300 flex-shrink-0" />
-                      )}
-                      <div>
-                        <div className="font-semibold text-gray-900">{f.kennzeichen}</div>
-                        <div className="text-xs text-gray-500">{f.kunde || '–'}</div>
+                  <button type="button" onClick={() => openInfoModal(f)} className="w-full text-left px-4 pt-3 pb-2">
+                    <div className="flex items-start justify-between gap-3">
+                      <div className="min-w-0">
+                        <div className="text-[15px] font-medium text-gray-900">{f.kennzeichen}</div>
+                        <div className="text-xs text-gray-600 truncate">{f.kunde || '–'}</div>
+                      </div>
+                      <div className="text-right flex-shrink-0">
+                        <div className={`text-sm tabular-nums ${isOverdue ? 'text-red-600' : isDringend ? 'text-amber-700' : 'text-gray-900'}`}>{f.nextDate}</div>
+                        <div className="text-[11px] text-gray-500">{isOverdue ? 'überfällig' : isDringend ? 'diese Woche' : 'fällig'}</div>
                       </div>
                     </div>
-                    <div className={`text-sm font-medium tabular-nums ${
-                      isOverdue ? 'text-red-600' : isDringend ? 'text-amber-600' : 'text-gray-700'
-                    }`}>
-                      {f.nextDate}
+                    <div className="flex flex-wrap gap-x-4 gap-y-1 mt-2 text-xs text-gray-600">
+                      {f.serviceFaellig && <span>Service {f.serviceFaellig}</span>}
+                      {f.inspektionTermin && <span>Inspektion {f.inspektionTermin}</span>}
+                      {f.huTermin && <span>HU {f.huTermin}</span>}
                     </div>
+                  </button>
+                  <div className="flex items-stretch border-t border-gray-200 text-xs">
+                    <button
+                      type="button"
+                      onClick={() => handleStatusChange(f.vin, 'angeschrieben', !hasAngeschrieben)}
+                      aria-pressed={hasAngeschrieben}
+                      className={`flex-1 flex items-center justify-center gap-1.5 py-2.5 ${hasAngeschrieben ? 'bg-brand-50 text-gray-900' : 'text-gray-600'}`}
+                    >
+                      <EnvelopeIcon className={`w-4 h-4 ${hasAngeschrieben ? 'text-brand-700' : ''}`} />
+                      {hasAngeschrieben ? 'Angeschr.' : 'Anschreiben'}
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => openTerminModal(f.vin)}
+                      className={`flex-1 flex items-center justify-center gap-1.5 py-2.5 border-l border-gray-200 ${hasTermin ? 'bg-brand-50 text-gray-900' : 'text-gray-900 font-medium'}`}
+                    >
+                      <CalendarDaysIcon className={`w-4 h-4 ${hasTermin ? 'text-brand-700' : ''}`} />
+                      {hasTermin ? formatTermin(status.service_termin) : 'Termin'}
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => handleStatusChange(f.vin, 'nachgefasst', !status.nachgefasst)}
+                      aria-pressed={!!status.nachgefasst}
+                      className={`flex-1 flex items-center justify-center gap-1.5 py-2.5 border-l border-gray-200 ${status.nachgefasst ? 'bg-brand-50 text-gray-900' : 'text-gray-600'}`}
+                    >
+                      <PhoneIcon className={`w-4 h-4 ${status.nachgefasst ? 'text-brand-700' : ''}`} />
+                      Nachgef.
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setOpenMenu(openMenu === f.vin ? null : f.vin)}
+                      className="px-3 border-l border-gray-200 text-gray-600"
+                      aria-label="Weitere Aktionen"
+                    >
+                      <EllipsisVerticalIcon className="w-4 h-4" />
+                    </button>
                   </div>
-                  <div className="flex items-center gap-3 mt-2 pt-2 border-t border-gray-100 text-xs">
-                    {hasAngeschrieben && <span className="text-sky-600">✓ Angeschrieben</span>}
-                    {hasTermin && <span className="text-emerald-600">Termin: {status.service_termin}</span>}
-                    {!hasAngeschrieben && !hasTermin && <span className="text-gray-400">Noch offen</span>}
-                  </div>
+                  {openMenu === f.vin && (
+                    <div className="flex border-t border-gray-200 text-xs">
+                      <button type="button" onClick={() => { setModal({ type: 'wiedervorlage', vin: f.vin }); setOpenMenu(null) }} className="flex-1 py-2.5 text-gray-900">Wiedervorlage</button>
+                      <button type="button" onClick={() => { setModal({ type: 'austragen', vin: f.vin }); setOpenMenu(null) }} className="flex-1 py-2.5 border-l border-gray-200 text-red-600">Austragen</button>
+                    </div>
+                  )}
                 </div>
               )
             })}
         </div>
 
-        {/* Desktop: Table View */}
-        <table className="hidden md:table w-full text-sm">
+        {/* Desktop: Tabelle */}
+        <table className="hidden md:table w-full table-fixed text-sm">
           <thead className="sticky top-0 bg-white z-10">
             <tr className="border-b border-gray-200">
-              <th className="w-8 pb-3 pl-4"></th>
-              <th className="w-24 pb-3 text-left font-medium text-gray-500">Datum</th>
-              <th className="w-36 pb-3 text-left font-medium text-gray-500">Fahrzeug</th>
-              <th className="w-28 pb-3 text-left font-medium text-gray-500">Service</th>
-              <th className="w-28 pb-3 text-left font-medium text-gray-500">Inspektion</th>
-              <th className="w-20 pb-3 text-left font-medium text-gray-500">HU</th>
-              <th className="w-10 pb-3 text-center text-gray-400" title="Angeschrieben">
-                <EnvelopeIcon className="w-4 h-4 mx-auto" />
-              </th>
-              <th className="w-28 pb-3 text-center font-medium text-gray-500 text-xs">Termin</th>
-              <th className="w-10 pb-3 text-center text-gray-400" title="Nachgefasst">
-                <PhoneIcon className="w-4 h-4 mx-auto" />
-              </th>
-              <th className="w-8 pb-3"></th>
+              <th className="w-[132px] py-3 pl-5 pr-3 text-left">Fällig</th>
+              <th className="w-[24%] py-3 px-3 text-left">Fahrzeug</th>
+              <th className="py-3 px-3 text-left">Anlass</th>
+              <th className="w-[220px] py-3 px-3 text-left">Status</th>
+              <th className="w-[200px] py-3 pl-3 pr-5 text-right"><span className="sr-only">Aktionen</span></th>
             </tr>
           </thead>
-          <tbody className="divide-y divide-gray-100">
+          <tbody>
             {getFilteredData()
-              .sort((a, b) => {
-                // Nach Datum aufsteigend sortieren
-                const parseDate = (dateStr) => {
-                  if (!dateStr) return new Date(9999, 11, 31)
-                  if (dateStr.includes('.')) {
-                    const [d, m, y] = dateStr.split('.')
-                    return new Date(y, m - 1, d)
-                  }
-                  return new Date(dateStr)
-                }
-                return parseDate(a.nextDate) - parseDate(b.nextDate)
-              })
+              .sort((a, b) => parseDE(a.nextDate) - parseDE(b.nextDate))
               .map((f, i) => {
               const status = statusMap[f.vin] || {}
               const hasTermin = !!status.service_termin
               const hasAngeschrieben = !!status.angeschrieben
+              const hasNachgefasst = !!status.nachgefasst
               const isOverdue = f.urgency === 'ueberfaellig'
               const isDringend = f.urgency === 'dringend'
-              
-              // Zeilen-Styling basierend auf Status
-              const rowClass = hasTermin 
-                ? 'bg-emerald-50/30' 
-                : hasAngeschrieben 
-                  ? '' 
-                  : isOverdue 
-                    ? 'bg-red-50/50' 
-                    : isDringend 
-                      ? 'bg-amber-50/30' 
-                      : ''
-              
+              const days = daysFromToday(f.nextDate)
+              const anlass = [
+                f.serviceFaellig && { typ: 'Service', datum: f.serviceFaellig, info: f.serviceBezeichnung },
+                f.inspektionTermin && { typ: 'Inspektion', datum: f.inspektionTermin, info: f.inspektionVermerk },
+                f.huTermin && { typ: 'HU', datum: f.huTermin },
+              ].filter(Boolean)
+              const st = hasTermin
+                ? { key: 'termin', text: `Termin ${formatTermin(status.service_termin)}` }
+                : hasNachgefasst
+                  ? { key: 'angeschrieben', text: 'angeschrieben, nachgefasst' }
+                  : hasAngeschrieben
+                    ? { key: 'angeschrieben', text: 'angeschrieben, wartet' }
+                    : { key: 'offen', text: 'offen' }
+              const toggleCls = (on) => `w-9 h-9 grid place-items-center border transition-colors ${
+                on ? 'bg-brand-600 border-brand-600 text-white hover:bg-brand-700' : 'bg-white border-gray-300 text-gray-500 hover:border-gray-900 hover:text-gray-900'
+              }`
+
               return (
-                <tr 
-                  key={f.vin || i} 
-                  className={`group hover:bg-gray-50/50 transition-colors ${rowClass}`}
+                <tr
+                  key={f.vin || i}
+                  onClick={() => openInfoModal(f)}
+                  onKeyDown={e => { if (e.key === 'Enter' && e.target === e.currentTarget) openInfoModal(f) }}
+                  tabIndex={0}
+                  title="Fahrzeug öffnen"
+                  className="group cursor-pointer border-b border-gray-200 last:border-0 hover:bg-gray-50 focus:outline-none focus-visible:bg-brand-50 transition-colors"
                 >
-                  {/* Status Icon */}
-                  <td className="py-3 pl-4 pr-2">
-                    {hasTermin ? (
-                      <CheckCircleSolid className="w-5 h-5 text-emerald-500" />
-                    ) : hasAngeschrieben ? (
-                      <EnvelopeIcon className="w-5 h-5 text-sky-500" />
-                    ) : isOverdue ? (
-                      <ExclamationTriangleIcon className="w-5 h-5 text-red-500" />
-                    ) : isDringend ? (
-                      <ExclamationTriangleIcon className="w-5 h-5 text-amber-500" />
-                    ) : (
-                      <ClockIcon className="w-5 h-5 text-gray-300" />
+                  {/* Fällig */}
+                  <td className={`py-3 pl-5 pr-3 align-top relative ${!hasTermin && (isOverdue || isDringend) ? '' : ''}`}>
+                    {!hasTermin && (isOverdue || isDringend) && (
+                      <span className={`absolute left-0 top-2 bottom-2 w-[3px] ${isOverdue ? 'bg-red-600' : 'bg-amber-500'}`} />
                     )}
+                    <div className={`tabular-nums ${!hasTermin && isOverdue ? 'text-red-600' : !hasTermin && isDringend ? 'text-amber-700' : 'text-gray-900'}`}>{f.nextDate || '–'}</div>
+                    <div className="text-xs text-gray-500 mt-0.5 whitespace-nowrap">
+                      {relTage(days)}
+                    </div>
                   </td>
 
-                  {/* Datum */}
-                  <td className="py-3 pr-4">
-                    <span className={`font-medium tabular-nums ${
-                      isOverdue ? 'text-red-600' : isDringend ? 'text-amber-600' : 'text-gray-900'
-                    }`}>
-                      {f.nextDate}
-                    </span>
-                  </td>
-
-                  {/* Fahrzeug: Kennzeichen + Kunde */}
-                  <td className="py-2 pr-4">
-                    <button 
-                      onClick={() => openInfoModal(f)}
-                      className="text-left hover:bg-gray-100 rounded px-1 -mx-1 transition-colors"
-                    >
-                      <div className="font-medium text-gray-900 flex items-center gap-1">
+                  {/* Fahrzeug */}
+                  <td className="py-3 px-3 align-top">
+                    <div className="min-w-0">
+                      <div className="font-medium text-gray-900 group-hover:text-brand-700 group-hover:underline underline-offset-4 flex items-center gap-1.5">
                         {f.kennzeichen || '–'}
-                        {status.notiz && (
-                          <svg title={status.notiz} className="w-3.5 h-3.5 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 8h10M7 12h4m1 8l-4-4H5a2 2 0 01-2-2V6a2 2 0 012-2h14a2 2 0 012 2v8a2 2 0 01-2 2h-3l-4 4z" />
-                          </svg>
-                        )}
-                        <InformationCircleIcon className="w-3.5 h-3.5 text-gray-400" />
+                        {status.notiz && <span title={status.notiz} className="text-gray-500"><DocumentTextIcon className="w-3.5 h-3.5" /></span>}
                       </div>
-                      <div className="text-xs text-gray-500 truncate max-w-[140px]" title={f.kunde}>
-                        {f.kunde || '–'}
-                      </div>
-                    </button>
+                      <div className="text-xs text-gray-600 truncate max-w-[220px]" title={f.kunde}>{f.kunde || '–'}</div>
+                    </div>
                   </td>
 
-                  {/* Service fällig */}
-                  <td className="py-3 pr-4">
-                    {f.serviceFaellig ? (
-                      <div>
-                        <div className="text-gray-900 tabular-nums">{f.serviceFaellig}</div>
-                        <div className="text-xs text-gray-400 truncate max-w-[140px]" title={f.serviceBezeichnung}>
-                          {f.serviceBezeichnung}
-                        </div>
-                      </div>
-                    ) : (
-                      <span className="text-gray-300">–</span>
-                    )}
+                  {/* Anlass */}
+                  <td className="py-3 px-3 align-top">
+                    <div className="flex flex-wrap gap-x-4 gap-y-1">
+                      {anlass.length === 0 && <span className="text-gray-500">–</span>}
+                      {anlass.map(x => (
+                        <span key={x.typ} className="inline-flex items-baseline gap-1.5 whitespace-nowrap" title={x.info || undefined}>
+                          <span className={`text-[10.5px] font-medium uppercase tracking-[0.1em] ${x.datum === f.nextDate ? 'text-gray-900' : 'text-gray-500'}`}>{x.typ}</span>
+                          <span className={`tabular-nums ${x.datum === f.nextDate ? 'text-gray-900' : 'text-gray-600'}`}>{x.datum}</span>
+                        </span>
+                      ))}
+                    </div>
+                    {f.serviceBezeichnung && <div className="text-xs text-gray-500 mt-0.5 truncate">{f.serviceBezeichnung}</div>}
                   </td>
 
-                  {/* Inspektion */}
-                  <td className="py-3 pr-4">
-                    {f.inspektionTermin ? (
-                      <div>
-                        <span className="text-gray-900 tabular-nums">{f.inspektionTermin}</span>
-                        {f.inspektionVermerk && (
-                          <div className="text-xs text-gray-400 truncate max-w-[120px]" title={f.inspektionVermerk}>
-                            {f.inspektionVermerk}
-                          </div>
-                        )}
-                      </div>
-                    ) : (
-                      <span className="text-gray-300">–</span>
-                    )}
+                  {/* Status */}
+                  <td className="py-3 px-3 align-top">
+                    <div className="truncate" title={st.text}><StatusTag status={st.key}>{st.text}</StatusTag></div>
                   </td>
 
-                  {/* HU */}
-                  <td className="py-3 pr-4">
-                    <span className={f.huTermin ? 'text-gray-900 tabular-nums' : 'text-gray-300'}>
-                      {f.huTermin || '–'}
-                    </span>
-                  </td>
-
-                  {/* Mail */}
-                  <td className="py-2 text-center">
-                    <button
-                      onClick={() => handleStatusChange(f.vin, 'angeschrieben', !statusMap[f.vin]?.angeschrieben)}
-                      className={`w-5 h-5 rounded-full flex items-center justify-center transition-colors mx-auto ${
-                        statusMap[f.vin]?.angeschrieben 
-                          ? 'bg-gray-800' 
-                          : 'border-2 border-gray-300 hover:border-gray-400'
-                      }`}
-                    >
-                      {statusMap[f.vin]?.angeschrieben && (
-                        <svg className="w-3 h-3 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={3}>
-                          <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
-                        </svg>
-                      )}
-                    </button>
-                  </td>
-
-                  {/* Termin */}
-                  <td className="py-2 px-1 text-center">
-                    <button
-                      type="button"
-                      onClick={() => openTerminModal(f.vin)}
-                      className={`inline-flex items-center justify-center gap-1.5 rounded-md px-2 py-1 text-xs font-medium transition-colors focus:outline-none focus:ring-2 focus:ring-gray-400 focus:ring-offset-1 ${
-                        statusMap[f.vin]?.service_termin
-                          ? 'text-gray-700 hover:bg-gray-100 hover:text-gray-950'
-                          : 'bg-gray-900 text-white hover:bg-gray-800'
-                      }`}
-                    >
-                      {statusMap[f.vin]?.service_termin ? <CalendarDaysIcon className="w-4 h-4" /> : <PlusIcon className="w-4 h-4" />}
-                      {formatTermin(statusMap[f.vin]?.service_termin)}
-                    </button>
-                  </td>
-
-                  {/* Telefon - nur sichtbar wenn: angeschrieben + kein Termin + >7 Tage überfällig */}
-                  <td className="py-2 text-center">
-                    {(() => {
-                      const showPhone = hasAngeschrieben && !hasTermin && isOverdue;
-                      if (!showPhone) return null;
-                      
-                      return (
-                        <button
-                          onClick={() => handleStatusChange(f.vin, 'nachgefasst', !statusMap[f.vin]?.nachgefasst)}
-                          className={`w-5 h-5 rounded-full flex items-center justify-center transition-colors mx-auto ${
-                            statusMap[f.vin]?.nachgefasst 
-                              ? 'bg-gray-800' 
-                              : 'border-2 border-gray-300 hover:border-gray-400'
-                          }`}
-                        >
-                          {statusMap[f.vin]?.nachgefasst && (
-                            <svg className="w-3 h-3 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={3}>
-                              <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
-                            </svg>
-                          )}
-                        </button>
-                      );
-                    })()}
-                  </td>
-
-                  {/* Kontextmenü */}
-                  <td className="py-2 text-center relative">
-                    <button
-                      onClick={() => setOpenMenu(openMenu === f.vin ? null : f.vin)}
-                      className="p-1 hover:bg-gray-100 rounded transition-colors"
-                    >
-                      <EllipsisVerticalIcon className="w-4 h-4 text-gray-400" />
-                    </button>
+                  {/* Aktionen */}
+                  <td className="py-2.5 pl-3 pr-5 align-top relative cursor-default" onClick={e => e.stopPropagation()}>
+                    <div className="flex items-center justify-end gap-1.5">
+                      <button
+                        type="button"
+                        onClick={() => openTerminModal(f.vin)}
+                        title={hasTermin ? `Termin ${formatTermin(status.service_termin)} ändern` : 'Termin eintragen'}
+                        aria-label={hasTermin ? 'Termin ändern' : 'Termin eintragen'}
+                        className={toggleCls(hasTermin)}
+                      >
+                        {hasTermin ? <CalendarDaysIcon className="w-[18px] h-[18px]" /> : <CalendarPlusIcon className="w-[18px] h-[18px]" />}
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => handleStatusChange(f.vin, 'angeschrieben', !hasAngeschrieben)}
+                        aria-pressed={hasAngeschrieben}
+                        title={hasAngeschrieben ? 'Angeschrieben – klicken zum Zurücknehmen' : 'Als angeschrieben markieren'}
+                        className={toggleCls(hasAngeschrieben)}
+                      >
+                        <EnvelopeIcon className="w-[18px] h-[18px]" />
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => handleStatusChange(f.vin, 'nachgefasst', !hasNachgefasst)}
+                        aria-pressed={hasNachgefasst}
+                        title={hasNachgefasst ? 'Nachgefasst – klicken zum Zurücknehmen' : 'Als telefonisch nachgefasst markieren'}
+                        className={toggleCls(hasNachgefasst)}
+                      >
+                        <PhoneIcon className="w-[18px] h-[18px]" />
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => setOpenMenu(openMenu === f.vin ? null : f.vin)}
+                        className="w-9 h-9 grid place-items-center rounded-full text-gray-600 hover:bg-gray-100 hover:text-gray-900"
+                        aria-label="Weitere Aktionen"
+                      >
+                        <EllipsisVerticalIcon className="w-[18px] h-[18px]" />
+                      </button>
+                    </div>
                     {openMenu === f.vin && (
-                      <div className="absolute right-0 top-8 bg-white border border-gray-200 rounded-lg shadow-lg z-20 py-1 min-w-[140px]">
-                        <button
-                          onClick={() => { setModal({ type: 'austragen', vin: f.vin }); setOpenMenu(null); }}
-                          className="w-full px-3 py-2 text-left text-sm hover:bg-gray-50 flex items-center gap-2"
-                        >
-                          <TrashIcon className="w-4 h-4 text-gray-400" />
-                          Austragen
-                        </button>
+                      <div className="absolute right-5 top-12 bg-white border border-gray-200 shadow-lg z-20 py-1 min-w-[180px] text-left">
                         <button
                           onClick={() => { setModal({ type: 'wiedervorlage', vin: f.vin }); setOpenMenu(null); }}
-                          className="w-full px-3 py-2 text-left text-sm hover:bg-gray-50 flex items-center gap-2"
+                          className="w-full px-3 py-2 text-left text-sm hover:bg-gray-100 flex items-center gap-2"
                         >
-                          <ArrowPathIcon className="w-4 h-4 text-gray-400" />
+                          <ArrowPathIcon className="w-4 h-4 text-gray-600" />
                           Wiedervorlage
+                        </button>
+                        <button
+                          onClick={() => { setModal({ type: 'austragen', vin: f.vin }); setOpenMenu(null); }}
+                          className="w-full px-3 py-2 text-left text-sm text-red-600 hover:bg-red-50 flex items-center gap-2"
+                        >
+                          <TrashIcon className="w-4 h-4" />
+                          Austragen
                         </button>
                       </div>
                     )}
@@ -934,30 +934,14 @@ export function FaelligkeitenList({ data, onRefresh, currentUser, token }) {
       </div>
 
       {/* Footer Legend */}
-      <div className="flex items-center gap-6 pt-4 mt-4 border-t border-gray-100 text-xs text-gray-500">
-        <div className="flex items-center gap-1.5">
-          <CheckCircleSolid className="w-4 h-4 text-emerald-500" />
-          <span>Termin</span>
-        </div>
-        <div className="flex items-center gap-1.5">
-          <EnvelopeIcon className="w-4 h-4 text-sky-500" />
-          <span>Angeschrieben</span>
-        </div>
-        <div className="flex items-center gap-1.5">
-          <ExclamationTriangleIcon className="w-4 h-4 text-red-500" />
-          <span>Überfällig</span>
-        </div>
-        <div className="flex items-center gap-1.5">
-          <ExclamationTriangleIcon className="w-4 h-4 text-amber-500" />
-          <span>Diese Woche</span>
-        </div>
-        <div className="ml-auto text-gray-400">{data.length} Einträge</div>
+      <div className="flex items-center gap-6 pt-3 mt-2 md:pt-4 md:mt-4 border-t border-gray-200 text-xs text-gray-500">
+        <div className="ml-auto font-mono text-xs text-gray-500">{getFilteredData().length} von {data.length} Einträgen</div>
       </div>
 
       {/* Modal: Austragen */}
       {modal.type === 'austragen' && (
-        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50" onClick={() => setModal({ type: null, vin: null })}>
-          <div className="bg-white rounded-lg shadow-xl w-full max-w-md p-6" onClick={e => e.stopPropagation()}>
+        <div className="fixed inset-0 bg-black/40 flex items-end md:items-center justify-center z-50 md:p-4" onClick={() => setModal({ type: null, vin: null })}>
+          <div className="bg-white rounded-lg shadow-lg w-full md:max-w-md p-5 md:p-6 pb-[max(20px,env(safe-area-inset-bottom))]" onClick={e => e.stopPropagation()}>
             <div className="flex items-center justify-between mb-4">
               <h3 className="text-lg font-semibold text-gray-900">Fahrzeug austragen</h3>
               <button onClick={() => setModal({ type: null, vin: null })} className="text-gray-400 hover:text-gray-600">
@@ -965,11 +949,11 @@ export function FaelligkeitenList({ data, onRefresh, currentUser, token }) {
               </button>
             </div>
             <div className="mb-4">
-              <label className="block text-sm font-medium text-gray-700 mb-1">Grund</label>
+              <label className="field-label">Grund</label>
               <textarea
                 value={modalData.grund}
                 onChange={(e) => setModalData(prev => ({ ...prev, grund: e.target.value }))}
-                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-gray-500 focus:border-gray-500"
+                className="field w-full"
                 rows={3}
                 placeholder="Grund für das Austragen..."
               />
@@ -995,8 +979,8 @@ export function FaelligkeitenList({ data, onRefresh, currentUser, token }) {
 
       {/* Modal: Wiedervorlage */}
       {modal.type === 'wiedervorlage' && (
-        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50" onClick={() => setModal({ type: null, vin: null })}>
-          <div className="bg-white rounded-lg shadow-xl w-full max-w-md p-6" onClick={e => e.stopPropagation()}>
+        <div className="fixed inset-0 bg-black/40 flex items-end md:items-center justify-center z-50 md:p-4" onClick={() => setModal({ type: null, vin: null })}>
+          <div className="bg-white rounded-lg shadow-lg w-full md:max-w-md p-5 md:p-6 pb-[max(20px,env(safe-area-inset-bottom))]" onClick={e => e.stopPropagation()}>
             <div className="flex items-center justify-between mb-4">
               <h3 className="text-lg font-semibold text-gray-900">Wiedervorlage</h3>
               <button onClick={() => setModal({ type: null, vin: null })} className="text-gray-400 hover:text-gray-600">
@@ -1004,20 +988,20 @@ export function FaelligkeitenList({ data, onRefresh, currentUser, token }) {
               </button>
             </div>
             <div className="mb-4">
-              <label className="block text-sm font-medium text-gray-700 mb-1">Datum</label>
+              <label className="field-label">Datum</label>
               <input
                 type="date"
                 value={modalData.datum}
                 onChange={(e) => setModalData(prev => ({ ...prev, datum: e.target.value }))}
-                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-gray-500 focus:border-gray-500"
+                className="field w-full"
               />
             </div>
             <div className="mb-4">
-              <label className="block text-sm font-medium text-gray-700 mb-1">Grund</label>
+              <label className="field-label">Grund</label>
               <textarea
                 value={modalData.grund}
                 onChange={(e) => setModalData(prev => ({ ...prev, grund: e.target.value }))}
-                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-gray-500 focus:border-gray-500"
+                className="field w-full"
                 rows={3}
                 placeholder="Grund für Wiedervorlage..."
               />
@@ -1042,8 +1026,8 @@ export function FaelligkeitenList({ data, onRefresh, currentUser, token }) {
       )}
 
       {modal.type === 'termin' && (
-        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4" onClick={() => setModal({ type: null, vin: null })}>
-          <div className="bg-white rounded-lg shadow-xl w-full max-w-md p-6" onClick={e => e.stopPropagation()}>
+        <div className="fixed inset-0 bg-black/40 flex items-end md:items-center justify-center z-50 md:p-4" onClick={() => setModal({ type: null, vin: null })}>
+          <div className="bg-white rounded-lg shadow-lg w-full md:max-w-md p-5 md:p-6 pb-[max(20px,env(safe-area-inset-bottom))]" onClick={e => e.stopPropagation()}>
             <div className="flex items-center justify-between mb-4">
               <h3 className="text-lg font-semibold text-gray-900">Termin setzen</h3>
               <button onClick={() => setModal({ type: null, vin: null })} className="text-gray-400 hover:text-gray-600" aria-label="Dialog schließen">
@@ -1051,12 +1035,12 @@ export function FaelligkeitenList({ data, onRefresh, currentUser, token }) {
               </button>
             </div>
             <div className="mb-6">
-              <label className="block text-sm font-medium text-gray-700 mb-1">Datum</label>
+              <label className="field-label">Datum</label>
               <input
                 type="date"
                 value={modalData.datum}
                 onChange={(e) => setModalData(prev => ({ ...prev, datum: e.target.value }))}
-                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-gray-500 focus:border-gray-500"
+                className="field w-full"
                 autoFocus
               />
             </div>
@@ -1081,18 +1065,20 @@ export function FaelligkeitenList({ data, onRefresh, currentUser, token }) {
 
       {/* Modal: Fahrzeug-Detail - Umfangreich mit Sidebar */}
       {infoModal && (
-        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4" onClick={closeInfoModal}>
-          <div className="bg-white w-full max-w-5xl h-[85vh] rounded-2xl shadow-2xl overflow-hidden flex" onClick={e => e.stopPropagation()}>
+        <div className="fixed inset-0 bg-black/40 flex items-end md:items-center justify-center z-50 md:p-4" onClick={closeInfoModal}>
+          <div className="bg-white w-full max-w-5xl h-[92dvh] md:h-[85vh] shadow-lg overflow-hidden flex flex-col md:flex-row" onClick={e => e.stopPropagation()}>
             {/* Sidebar */}
-            <div className="w-56 bg-gray-50 border-r border-gray-200 flex flex-col flex-shrink-0">
+            <div className="w-full md:w-56 bg-gray-50 border-b md:border-b-0 md:border-r border-gray-200 flex flex-col flex-shrink-0">
               {/* Header */}
-              <div className="p-5 border-b border-gray-200">
-                <h3 className="text-lg font-bold text-gray-900">{infoModal.kennzeichen}</h3>
+              <div className="p-4 md:p-5 border-b border-gray-200 flex items-start justify-between gap-3">
+                <div>
+                <h3 className="text-lg font-normal text-gray-900">{infoModal.kennzeichen}</h3>
                 <p className="text-xs text-gray-500 font-mono mt-1">{infoModal.vin}</p>
+                </div>
               </div>
               
               {/* Navigation */}
-              <nav className="flex-1 p-3">
+              <nav className="flex md:block md:flex-1 gap-1 p-2 md:p-3 overflow-x-auto">
                 {[
                   { id: 'uebersicht', label: 'Übersicht', Icon: ChartBarIcon },
                   { id: 'kunde', label: 'Kundendaten', Icon: UserIcon },
@@ -1103,20 +1089,17 @@ export function FaelligkeitenList({ data, onRefresh, currentUser, token }) {
                   <button
                     key={tab.id}
                     onClick={() => setInfoModal({ ...infoModal, activeTab: tab.id })}
-                    className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-xl mb-1 text-left transition-all ${
-                      (infoModal.activeTab || 'uebersicht') === tab.id
-                        ? 'bg-emerald-100 text-emerald-800 font-medium'
-                        : 'text-gray-600 hover:bg-gray-100'
-                    }`}
+                    aria-current={(infoModal.activeTab || 'uebersicht') === tab.id ? 'page' : undefined}
+                    className="side-link flex-shrink-0 md:w-full flex items-center gap-2 md:gap-3 px-3 py-2 md:py-2.5 md:mb-1 text-left whitespace-nowrap"
                   >
-                    <tab.Icon className={`w-5 h-5 ${(infoModal.activeTab || 'uebersicht') === tab.id ? 'text-emerald-600' : 'text-gray-400'}`} />
-                    <span className="text-sm">{tab.label}</span>
+                    <tab.Icon className="w-5 h-5" />
+                    <span>{tab.label}</span>
                   </button>
                 ))}
               </nav>
               
               {/* Status Quick View */}
-              <div className="p-4 border-t border-gray-200">
+              <div className="hidden md:block p-4 border-t border-gray-200">
                 <div className="space-y-2 text-xs">
                   <div className="flex items-center justify-between">
                     <span className="text-gray-500">Status</span>
@@ -1167,16 +1150,16 @@ export function FaelligkeitenList({ data, onRefresh, currentUser, token }) {
                       <div className="grid grid-cols-3 gap-4">
                         <div className="bg-gray-50 rounded-xl p-4">
                           <p className="text-xs text-gray-500 mb-1">Service</p>
-                          <p className="text-lg font-bold text-gray-900">{infoModal.serviceFaellig || '–'}</p>
+                          <p className="text-lg font-normal text-gray-900">{infoModal.serviceFaellig || '–'}</p>
                           {infoModal.serviceBezeichnung && <p className="text-xs text-gray-500 mt-1">{infoModal.serviceBezeichnung}</p>}
                         </div>
                         <div className="bg-gray-50 rounded-xl p-4">
                           <p className="text-xs text-gray-500 mb-1">Inspektion</p>
-                          <p className="text-lg font-bold text-gray-900">{infoModal.inspektionTermin || '–'}</p>
+                          <p className="text-lg font-normal text-gray-900">{infoModal.inspektionTermin || '–'}</p>
                         </div>
                         <div className="bg-gray-50 rounded-xl p-4">
                           <p className="text-xs text-gray-500 mb-1">HU</p>
-                          <p className="text-lg font-bold text-gray-900">{infoModal.huTermin || '–'}</p>
+                          <p className="text-lg font-normal text-gray-900">{infoModal.huTermin || '–'}</p>
                         </div>
                       </div>
                     </div>
@@ -1211,7 +1194,7 @@ export function FaelligkeitenList({ data, onRefresh, currentUser, token }) {
                             className={`inline-flex items-center gap-1 text-sm font-medium rounded-md px-1.5 py-1 transition-colors ${
                               statusMap[infoModal.vin]?.service_termin
                                 ? 'text-gray-700 hover:bg-gray-100 hover:text-gray-950'
-                                : 'bg-gray-900 text-white hover:bg-gray-800'
+                                : 'border border-gray-900 bg-white text-gray-900 hover:bg-gray-100'
                             }`}
                           >
                             {statusMap[infoModal.vin]?.service_termin ? <CalendarDaysIcon className="w-4 h-4" /> : <PlusIcon className="w-4 h-4" />}
@@ -1243,81 +1226,81 @@ export function FaelligkeitenList({ data, onRefresh, currentUser, token }) {
                   <div className="space-y-6">
                     <div className="grid grid-cols-2 gap-4">
                       <div>
-                        <label className="block text-sm font-medium text-gray-700 mb-2">Name</label>
+                        <label className="field-label">Name</label>
                         <input 
                           type="text" 
                           value={editKunde.name}
                           onChange={(e) => setEditKunde(prev => ({ ...prev, name: e.target.value }))}
                           placeholder="Name eingeben..."
-                          className="w-full px-4 py-3 border border-gray-200 rounded-xl text-sm focus:ring-2 focus:ring-emerald-500 focus:border-transparent"
+                          className="field w-full"
                         />
                       </div>
                       <div>
-                        <label className="block text-sm font-medium text-gray-700 mb-2">Telefon</label>
+                        <label className="field-label">Telefon</label>
                         <input 
                           type="tel" 
                           value={editKunde.telefon}
                           onChange={(e) => setEditKunde(prev => ({ ...prev, telefon: e.target.value }))}
                           placeholder="Telefon..."
-                          className="w-full px-4 py-3 border border-gray-200 rounded-xl text-sm focus:ring-2 focus:ring-emerald-500 focus:border-transparent"
+                          className="field w-full"
                         />
                       </div>
                       <div>
-                        <label className="block text-sm font-medium text-gray-700 mb-2">Straße</label>
+                        <label className="field-label">Straße</label>
                         <input 
                           type="text" 
                           value={editKunde.strasse}
                           onChange={(e) => setEditKunde(prev => ({ ...prev, strasse: e.target.value }))}
                           placeholder="Straße..."
-                          className="w-full px-4 py-3 border border-gray-200 rounded-xl text-sm focus:ring-2 focus:ring-emerald-500 focus:border-transparent"
+                          className="field w-full"
                         />
                       </div>
                       <div>
-                        <label className="block text-sm font-medium text-gray-700 mb-2">PLZ / Ort</label>
+                        <label className="field-label">PLZ / Ort</label>
                         <div className="flex gap-2">
                           <input 
                             type="text" 
                             value={editKunde.plz}
                             onChange={(e) => setEditKunde(prev => ({ ...prev, plz: e.target.value }))}
                             placeholder="PLZ"
-                            className="w-24 px-4 py-3 border border-gray-200 rounded-xl text-sm focus:ring-2 focus:ring-emerald-500 focus:border-transparent"
+                            className="field w-24"
                           />
                           <input 
                             type="text" 
                             value={editKunde.ort}
                             onChange={(e) => setEditKunde(prev => ({ ...prev, ort: e.target.value }))}
                             placeholder="Ort"
-                            className="flex-1 px-4 py-3 border border-gray-200 rounded-xl text-sm focus:ring-2 focus:ring-emerald-500 focus:border-transparent"
+                            className="field flex-1"
                           />
                         </div>
                       </div>
                       <div className="col-span-2">
-                        <label className="block text-sm font-medium text-gray-700 mb-2">E-Mail</label>
+                        <label className="field-label">E-Mail</label>
                         <input 
                           type="email" 
                           value={editKunde.email}
                           onChange={(e) => setEditKunde(prev => ({ ...prev, email: e.target.value }))}
                           placeholder="E-Mail..."
-                          className="w-full px-4 py-3 border border-gray-200 rounded-xl text-sm focus:ring-2 focus:ring-emerald-500 focus:border-transparent"
+                          className="field w-full"
                         />
                       </div>
                     </div>
                     
                     <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-2">Notizen</label>
+                      <label className="field-label">Notizen</label>
                       <textarea 
                         rows={4}
                         value={editKunde.notizen}
                         onChange={(e) => setEditKunde(prev => ({ ...prev, notizen: e.target.value }))}
                         placeholder="Notizen zum Kunden..."
-                        className="w-full px-4 py-3 border border-gray-200 rounded-xl text-sm focus:ring-2 focus:ring-emerald-500 focus:border-transparent resize-none"
+                        className="field w-full"
                       />
                     </div>
                     
                     <div className="flex justify-end">
                       <button 
                         onClick={handleSaveKunde}
-                        className="px-6 py-2.5 bg-emerald-600 text-white text-sm font-medium rounded-xl hover:bg-emerald-700 transition-colors"
+                        className="px-5 bg-brand-600 text-white hover:bg-brand-700 transition-colors btn-caps min-h-[40px]"
                       >
                         Speichern
                       </button>
@@ -1330,41 +1313,41 @@ export function FaelligkeitenList({ data, onRefresh, currentUser, token }) {
                   <div className="space-y-6">
                     <div className="grid grid-cols-2 gap-4">
                       <div>
-                        <label className="block text-xs text-gray-500 mb-1">Kennzeichen</label>
+                        <label className="field-label">Kennzeichen</label>
                         <input
                           type="text"
                           value={editFahrzeug.kennzeichen}
                           onChange={e => setEditFahrzeug({ ...editFahrzeug, kennzeichen: e.target.value })}
-                          className="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-xl text-lg font-bold focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500"
+                          className="field w-full"
                         />
                       </div>
-                      <div className="bg-gray-50 rounded-xl p-4">
-                        <p className="text-xs text-gray-500 mb-1">Fahrgestellnummer</p>
-                        <p className="text-sm font-mono text-gray-900">{infoModal.vin}</p>
+                      <div>
+                        <label className="field-label">Fahrgestellnummer</label>
+                        <input type="text" readOnly value={infoModal.vin || ''} className="field w-full font-mono text-[13px]" />
                       </div>
                       <div>
-                        <label className="block text-xs text-gray-500 mb-1">Hersteller</label>
+                        <label className="field-label">Hersteller</label>
                         <input
                           type="text"
                           value={editFahrzeug.hersteller}
                           onChange={e => setEditFahrzeug({ ...editFahrzeug, hersteller: e.target.value })}
-                          className="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-xl focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500"
+                          className="field w-full"
                         />
                       </div>
                       <div>
-                        <label className="block text-xs text-gray-500 mb-1">Modell</label>
+                        <label className="field-label">Modell</label>
                         <input
                           type="text"
                           value={editFahrzeug.modell}
                           onChange={e => setEditFahrzeug({ ...editFahrzeug, modell: e.target.value })}
-                          className="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-xl focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500"
+                          className="field w-full"
                         />
                       </div>
                     </div>
                     <div className="flex justify-end pt-4 border-t border-gray-100">
                       <button
                         onClick={handleSaveFahrzeug}
-                        className="px-6 py-2.5 bg-emerald-600 text-white text-sm font-medium rounded-xl hover:bg-emerald-700 transition-colors"
+                        className="px-5 bg-brand-600 text-white hover:bg-brand-700 transition-colors btn-caps min-h-[40px]"
                       >
                         Speichern
                       </button>
@@ -1435,8 +1418,8 @@ export function FaelligkeitenList({ data, onRefresh, currentUser, token }) {
 
       {/* Buchungscode Modal - ausgeblendet */}
       {false && buchungsLink && (
-        <div className="fixed inset-0 bg-black/30 flex items-center justify-center z-50 p-4" onClick={() => setBuchungsLink(null)}>
-          <div className="bg-white rounded-xl shadow-xl w-full max-w-md p-6" onClick={e => e.stopPropagation()}>
+        <div className="fixed inset-0 bg-black/40 flex items-end md:items-center justify-center z-50 md:p-4" onClick={() => setBuchungsLink(null)}>
+          <div className="bg-white rounded-xl shadow-lg w-full md:max-w-md p-5 md:p-6 pb-[max(20px,env(safe-area-inset-bottom))]" onClick={e => e.stopPropagation()}>
             <h3 className="text-lg font-semibold text-gray-900 mb-2">Buchungscode erstellt</h3>
             <p className="text-sm text-gray-500 mb-4">
               Für <span className="font-medium">{buchungsLink.kennzeichen}</span> wurde ein Buchungscode erstellt.
@@ -1460,7 +1443,7 @@ export function FaelligkeitenList({ data, onRefresh, currentUser, token }) {
                   navigator.clipboard.writeText(buchungsLink.code)
                   setBuchungsLink(null)
                 }}
-                className="flex-1 py-2 bg-emerald-600 hover:bg-emerald-700 text-white rounded-lg text-sm font-medium"
+                className="flex-1 py-2 bg-emerald-600 hover:bg-emerald-700 text-white rounded-lg btn-caps min-h-[40px]"
               >
                 Code kopieren
               </button>

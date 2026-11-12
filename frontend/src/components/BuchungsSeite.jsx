@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react'
-import { CalendarIcon, CheckCircleIcon, ExclamationCircleIcon } from '@heroicons/react/24/outline'
+import { CalendarIcon, CheckCircleIcon, ExclamationCircleIcon } from '../icons'
 
 const WOCHENTAGE = ['So', 'Mo', 'Di', 'Mi', 'Do', 'Fr', 'Sa']
 const MONATE = ['Januar', 'Februar', 'März', 'April', 'Mai', 'Juni', 'Juli', 'August', 'September', 'Oktober', 'November', 'Dezember']
@@ -123,7 +123,7 @@ export function BuchungsSeite() {
                 placeholder="z.B. ABC123"
                 value={codeInput}
                 onChange={(e) => { setCodeInput(e.target.value.toUpperCase()); setError(null); }}
-                className="w-full px-4 py-3 text-center text-2xl font-bold tracking-widest border border-gray-200 rounded-xl focus:ring-2 focus:ring-emerald-500 focus:border-transparent uppercase"
+                className="w-full px-4 py-3 text-center text-[32px] font-light tracking-[-1px] tabular-nums tracking-widest border border-gray-200 rounded-xl focus:ring-2 focus:ring-emerald-500 focus:border-transparent uppercase"
                 maxLength={6}
               />
             </div>
@@ -147,7 +147,7 @@ export function BuchungsSeite() {
             <button
               onClick={handleVerifizieren}
               disabled={!codeInput.trim() || !kennzeichenInput.trim() || loading}
-              className="w-full py-3 bg-emerald-600 hover:bg-emerald-700 text-white font-medium rounded-xl transition-colors disabled:opacity-50"
+              className="w-full py-3 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl transition-colors disabled:opacity-50 btn-caps min-h-[40px]"
             >
               {loading ? 'Wird geprüft...' : 'Weiter'}
             </button>
@@ -251,7 +251,7 @@ export function BuchungsSeite() {
             <button
               onClick={handleBuchen}
               disabled={buchend}
-              className="w-full mt-6 py-3 bg-emerald-600 hover:bg-emerald-700 text-white font-medium rounded-lg transition-colors disabled:opacity-50"
+              className="w-full mt-6 py-3 bg-emerald-600 hover:bg-emerald-700 text-white rounded-lg transition-colors disabled:opacity-50 btn-caps min-h-[40px]"
             >
               {buchend ? 'Wird gebucht...' : 'Termin verbindlich buchen'}
             </button>

@@ -428,7 +428,13 @@ const stmts = {
   
   getFahrzeugByVin: db.prepare(`SELECT * FROM fahrzeuge WHERE vin = ?`),
   
-  getAllFahrzeuge: db.prepare(`SELECT * FROM fahrzeuge ORDER BY kennzeichen`),
+  // kunde_name kommt aus kunden (Migration 9 entfernt fahrzeuge.kunde_name)
+  getAllFahrzeuge: db.prepare(`
+    SELECT f.*, k.name AS kunde_name
+    FROM fahrzeuge f
+    LEFT JOIN kunden k ON k.id = f.kunde_id
+    ORDER BY f.kennzeichen
+  `),
   
   updateFahrzeug: db.prepare(`
     UPDATE fahrzeuge SET kennzeichen = @kennzeichen, hersteller = @hersteller, 
@@ -550,7 +556,12 @@ const stmts = {
   
   getFahrzeugStatus: db.prepare(`SELECT * FROM fahrzeug_status WHERE vin = ?`),
   
-  getAllFahrzeugStatus: db.prepare(`SELECT * FROM fahrzeug_status`),
+  getAllFahrzeugStatus: db.prepare(`
+    SELECT fs.*, f.kennzeichen, k.name AS kunde_name
+    FROM fahrzeug_status fs
+    LEFT JOIN fahrzeuge f ON f.vin = fs.vin
+    LEFT JOIN kunden k ON k.id = f.kunde_id
+  `),
 
   // Audit-Log
   insertAuditLog: db.prepare(`

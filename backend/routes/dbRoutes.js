@@ -95,50 +95,102 @@ router.get('/fahrzeug-status', (req, res) => {
 });
 
 // Fahrzeug-Status aktualisieren
+// Nur Felder, die im Request mitgeschickt werden, werden geändert.
+// Alle anderen Felder behalten ihren gespeicherten Wert (vorher wurden sie überschrieben/geleert).
+const STATUS_FIELDS = {
+  angeschrieben: { label: 'Angeschrieben', bool: true },
+  service_termin: { label: 'Termin', date: true },
+  nachgefasst: { label: 'Nachgefasst', bool: true },
+  ausgetragen: { label: 'Ausgetragen', bool: true },
+  austragen_grund: { label: 'Austragen-Grund' },
+  wiedervorlage_datum: { label: 'Wiedervorlage', date: true },
+  wiedervorlage_grund: { label: 'Wiedervorlage-Grund' },
+  notiz: { label: 'Notiz' }
+};
+
+const toSqlValue = (v) => {
+  if (v === undefined || v === '') return null;
+  if (typeof v === 'boolean') return v ? 1 : 0;
+  if (typeof v === 'object' && v !== null) return JSON.stringify(v);
+  return v;
+};
+
+const formatAuditValue = (field, v) => {
+  const def = STATUS_FIELDS[field];
+  if (def.bool) return v ? 'ja' : 'nein';
+  if (v === null || v === undefined || v === '') return '–';
+  if (def.date && /^\d{4}-\d{2}-\d{2}/.test(String(v))) {
+    const [y, m, d] = String(v).slice(0, 10).split('-');
+    return `${d}.${m}.${y}`;
+  }
+  return String(v);
+};
+
+const normalize = (field, v) => {
+  if (STATUS_FIELDS[field].bool) return v ? 1 : 0;
+  return v === undefined || v === '' ? null : v;
+};
+
+function describeAktion(field, newValue) {
+  if (field === 'ausgetragen') return newValue ? 'Fahrzeug ausgetragen' : 'Fahrzeug reaktiviert';
+  if (field === 'angeschrieben') return newValue ? 'Als angeschrieben markiert' : 'Angeschrieben entfernt';
+  if (field === 'nachgefasst') return newValue ? 'Als nachgefasst markiert' : 'Nachgefasst entfernt';
+  if (field === 'service_termin') return newValue ? 'Termin gesetzt' : 'Termin entfernt';
+  if (field === 'wiedervorlage_datum') return newValue ? 'Wiedervorlage gesetzt' : 'Wiedervorlage entfernt';
+  return `${STATUS_FIELDS[field].label} geändert`;
+}
+
 router.post('/fahrzeug-status', (req, res) => {
   try {
-    console.log('fahrzeug-status req.body:', JSON.stringify(req.body, null, 2));
-    
-    // Sicherstellen dass alle Werte primitiv sind (string, number, null)
-    const toSqlValue = (v) => {
-      if (v === undefined || v === '') return null;
-      if (typeof v === 'boolean') return v ? 1 : 0;
-      if (typeof v === 'object') return JSON.stringify(v);
-      return v;
-    };
-    
-    const data = {
-      vin: toSqlValue(req.body.vin),
-      angeschrieben: toSqlValue(req.body.angeschrieben),
-      service_termin: toSqlValue(req.body.service_termin),
-      nachgefasst: toSqlValue(req.body.nachgefasst),
-      ausgetragen: toSqlValue(req.body.ausgetragen),
-      austragen_grund: toSqlValue(req.body.austragen_grund),
-      wiedervorlage_datum: toSqlValue(req.body.wiedervorlage_datum),
-      wiedervorlage_grund: toSqlValue(req.body.wiedervorlage_grund),
-      notiz: toSqlValue(req.body.notiz),
-      bearbeitet_von: toSqlValue(req.user?.id)
-    };
-    
-    console.log('fahrzeug-status data:', JSON.stringify(data, null, 2));
-    upsertFahrzeugStatus(data);
-    
-    // Audit-Log
-    if (req.body.vin && req.user) {
-      insertAuditLog({
-        vin: req.body.vin,
-        aktion: req.body.aktion || 'Status aktualisiert',
-        feld: req.body.feld || null,
-        alter_wert: req.body.alter_wert || null,
-        neuer_wert: req.body.neuer_wert || null,
-        user_id: req.user.id,
-        user_name: req.user.username
-      });
+    const vin = req.body.vin;
+    if (!vin) return res.status(400).json({ error: 'vin fehlt' });
+
+    const db = getDb();
+    const existing = db.prepare('SELECT * FROM fahrzeug_status WHERE vin = ?').get(vin) || {};
+
+    const data = { vin, bearbeitet_von: toSqlValue(req.user?.id) };
+    const changes = [];
+    for (const field of Object.keys(STATUS_FIELDS)) {
+      const sent = Object.prototype.hasOwnProperty.call(req.body, field);
+      const oldValue = normalize(field, existing[field]);
+      const newValue = sent ? normalize(field, toSqlValue(req.body[field])) : oldValue;
+      data[field] = newValue;
+      if (sent && String(oldValue ?? '') !== String(newValue ?? '')) {
+        changes.push({ field, oldValue, newValue });
+      }
     }
-    
-    res.json({ success: true });
+
+    upsertFahrzeugStatus(data);
+
+    // Audit-Log: ein Eintrag pro tatsächlich geändertem Feld
+    if (req.user) {
+      for (const c of changes) {
+        insertAuditLog({
+          vin,
+          aktion: describeAktion(c.field, c.newValue),
+          feld: STATUS_FIELDS[c.field].label,
+          alter_wert: formatAuditValue(c.field, c.oldValue),
+          neuer_wert: formatAuditValue(c.field, c.newValue),
+          user_id: req.user.id,
+          user_name: req.user.username
+        });
+      }
+    }
+
+    res.json({ success: true, changes: changes.length });
   } catch (err) {
     console.error('fahrzeug-status error:', err);
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// Aktueller Status für ein Fahrzeug
+router.get('/fahrzeug-status/:vin', (req, res) => {
+  try {
+    const db = getDb();
+    const row = db.prepare('SELECT * FROM fahrzeug_status WHERE vin = ?').get(req.params.vin);
+    res.json(row || null);
+  } catch (err) {
     res.status(500).json({ error: err.message });
   }
 });
