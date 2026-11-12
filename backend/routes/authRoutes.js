@@ -1,7 +1,7 @@
 import express from 'express';
 import bcrypt from 'bcryptjs';
 import { generateToken, authMiddleware, adminOnly } from '../middleware/auth.js';
-import { getUserByUsername, createUser, getAllUsers, getDb, createInviteToken, getInviteToken, useInviteToken, getAllInviteTokens, deleteInviteToken, updateUserActive, updateUserRole } from '../db/database.js';
+import { getUserByUsername, createUser, getAllUsers, getDb, createInviteToken, getInviteToken, useInviteToken, getAllInviteTokens, deleteInviteToken, updateUserActive, updateUserRole } from '../lib/database.js';
 
 const router = express.Router();
 

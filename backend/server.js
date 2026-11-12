@@ -14,7 +14,7 @@ import dbRoutes from './routes/dbRoutes.js';
 import authRoutes from './routes/authRoutes.js';
 import buchungRoutes from './routes/buchungRoutes.js';
 import { authMiddleware } from './middleware/auth.js';
-import { importParsedData } from './db/database.js';
+import { importParsedData } from './lib/database.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);

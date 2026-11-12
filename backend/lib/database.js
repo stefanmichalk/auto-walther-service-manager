@@ -8,7 +8,11 @@ import { formatKennzeichen } from '../utils/kennzeichenFormatter.js';
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
-const dbPath = path.join(__dirname, 'inspector.db');
+// Die Datenbank liegt in backend/db (in CapRover/Docker ein Persistent Volume).
+// Code darf NICHT in diesem Ordner liegen, sonst überdeckt das Volume ihn bei jedem Deploy.
+const dbDir = process.env.DB_DIR || path.join(__dirname, '..', 'db');
+if (!fs.existsSync(dbDir)) fs.mkdirSync(dbDir, { recursive: true });
+const dbPath = path.join(dbDir, 'inspector.db');
 const db = new Database(dbPath);
 
 // ============================================
