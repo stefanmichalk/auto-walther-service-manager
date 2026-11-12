@@ -3,7 +3,7 @@ import path from 'path';
 import fs from 'fs';
 import multer from 'multer';
 import { fileURLToPath } from 'url';
-import { getDb, getFaelligkeitenUebersicht, getAllFahrzeugStatus, upsertFahrzeugStatus, insertAuditLog, getAuditLogByVin, getAllFahrzeuge, getAllTermine, importParsedData } from '../db/database.js';
+import { getDb, getFaelligkeitenUebersicht, getAllFahrzeugStatus, upsertFahrzeugStatus, insertAuditLog, getAuditLogByVin, getAllFahrzeuge, getAllTermine, importParsedData } from '../lib/database.js';
 import { adminOnly } from '../middleware/auth.js';
 import { displayKennzeichen } from '../utils/kennzeichenFormatter.js';
 
@@ -892,7 +892,7 @@ router.get('/auslastung/:datum', (req, res) => {
 // BACKUP & RESTORE
 // ============================================
 
-const backupDir = path.join(__dirname, '..', 'db', 'backups');
+const backupDir = path.join(process.env.DB_DIR || path.join(__dirname, '..', 'db'), 'backups');
 const backupLogFile = path.join(backupDir, 'backup-log.json');
 
 function ensureBackupDir() {
@@ -1014,7 +1014,7 @@ router.post('/restore', adminOnly, restoreUpload.single('backup'), async (req, r
     });
     
     // 3. Restore: Uploaded DB über die aktuelle kopieren
-    const dbPath = path.join(__dirname, '..', 'db', 'inspector.db');
+    const dbPath = path.join(process.env.DB_DIR || path.join(__dirname, '..', 'db'), 'inspector.db');
     
     // DB schließen ist bei better-sqlite3 nicht direkt möglich ohne Neustart,
     // daher nutzen wir die serialize-Methode: WAL checkpoint + copy

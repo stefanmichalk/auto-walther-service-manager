@@ -1,6 +1,6 @@
 import express from 'express';
 import crypto from 'crypto';
-import { getDb } from '../db/database.js';
+import { getDb } from '../lib/database.js';
 
 const router = express.Router();
 
