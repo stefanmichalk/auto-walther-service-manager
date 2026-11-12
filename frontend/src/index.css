@@ -63,18 +63,16 @@
   /* Sidebar-Navigation */
   .side-link {
     position: relative;
-    font-family: Inter, ui-sans-serif, system-ui, sans-serif;
+    font-family: Poppins, ui-sans-serif, system-ui, sans-serif;
     font-size: 12.5px;
     font-weight: 500;
     text-transform: uppercase;
     letter-spacing: 0.1em;
     color: var(--ink-muted);
+    border-radius: 6px;
   }
   .side-link:hover { background: #F0F0F0; color: var(--ink); }
-  .side-link[aria-current='page'] { background: var(--brand-soft); color: var(--ink); font-weight: 600; }
-  .side-link[aria-current='page']::before {
-    content: ''; position: absolute; left: 0; top: 6px; bottom: 6px; width: 3px; background: var(--brand);
-  }
+  .side-link[aria-current='page'] { background: var(--brand-soft); color: var(--brand-strong); font-weight: 600; }
   .side-link[aria-current='page'] svg { color: var(--brand-strong); }
   /* Einheitliches Eingabefeld: Label darüber, gleiche Höhe, Fläche, Rahmen */
   .field {
@@ -97,7 +95,7 @@
     font-size: 11px; font-weight: 500; text-transform: uppercase; letter-spacing: 0.1em; color: var(--ink-muted);
   }
   .side-link:focus { outline: none; }
-  .side-link:focus-visible { outline: 2px solid var(--brand); outline-offset: -2px; }
+  .side-link:focus-visible { outline: 2px solid var(--brand); outline-offset: 2px; }
   .eyebrow {
     font-size: 11px; font-weight: 500; text-transform: uppercase; letter-spacing: 0.1em; color: var(--ink-subtle);
   }
